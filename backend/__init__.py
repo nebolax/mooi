@@ -2,28 +2,46 @@ import datetime
 from http import HTTPStatus
 from pkgutil import extend_path
 import random
-from typing import Iterable, Literal, NamedTuple, Optional
+from typing import Any, Iterable, Literal, NamedTuple, Optional
 from typing_extensions import Annotated
+import uuid
 from flask import Blueprint, Flask, Response, jsonify, request, session as flask_session, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_sqlalchemy.session import Session as SqlAlchemySession
 from dotenv import load_dotenv
 import os
 import enum
+from enum import auto
 from marshmallow import Schema, ValidationError, fields
-from flask_session import Session
+from flask_session import Session  # type: ignore[import]  # has not type stubs
 import sqlalchemy
 
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from sqlalchemy import ForeignKey, MetaData, String, func
 from sqlalchemy.orm import scoped_session
 
-
 load_dotenv()
+
+# Setup logging
+import logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+# Set file handler
+file_handler = logging.FileHandler('logs.log')
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+logger.addHandler(file_handler)
+# Set stdout handler
+stdout_handler = logging.StreamHandler()
+stdout_handler.setLevel(logging.DEBUG)
+stdout_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+logger.addHandler(stdout_handler)
+
 
 IntegerPrimaryKey = Annotated[int, mapped_column(primary_key=True)]
 
 db = SQLAlchemy()
+dbModel: Any = db.Model  # doing this to avoid db.Model not defined error
 db_session: scoped_session[SqlAlchemySession] = db.session
 
 REQUIRED_SUCCESS_PERCENTAGE = 70
@@ -36,18 +54,35 @@ class QuestionCategory(enum.Enum):
 
 
 class LanguageLevel(enum.Enum):
-    A1_1 = 0
-    A1_2 = 1
-    A2_1 = 2
-    A2_2 = 3
-    B1_1 = 4
-    B1_2 = 5
-    B1_3 = 6
-    B2_1 = 7
-    B2_2 = 8
+    A_0 = auto()
+    A1_1 = auto()
+    A1_2 = auto()
+    A2_1 = auto()
+    A2_2 = auto()
+    B1_1 = auto()
+    B1_2 = auto()
+    B1_3 = auto()
+    B2_1 = auto()
+    B2_2 = auto()
 
-MIN_LANGUAGE_LEVEL = LanguageLevel(min([level.value for level in LanguageLevel]))
-MAX_LANGUAGE_LEVEL = LanguageLevel(max([level.value for level in LanguageLevel]))
+    def __gt__(self, other: 'LanguageLevel') -> bool:
+        if not isinstance(other, LanguageLevel):
+            raise TypeError(f"'>' not supported between instances of '{type(self)}' and '{type(other)}'")
+        return self.value > other.value
+    
+    def __add__(self, other: int) -> 'LanguageLevel':
+        if not isinstance(other, int):
+            raise TypeError(f"unsupported operand type(s) for +: '{type(self)}' and '{type(other)}'")
+        return LanguageLevel(self.value + other)
+
+    def __sub__(self, other: int) -> 'LanguageLevel':
+        if not isinstance(other, int):
+            raise TypeError(f"unsupported operand type(s) for -: '{type(self)}' and '{type(other)}'")
+        return LanguageLevel(self.value - other)
+
+
+MIN_LANGUAGE_LEVEL = LanguageLevel.A1_1
+MAX_LANGUAGE_LEVEL = LanguageLevel.B2_2
 
 
 class AnswerType(enum.Enum):
@@ -56,7 +91,7 @@ class AnswerType(enum.Enum):
     FILL_THE_BLANK = 'fill_the_blank'
 
 
-class Question(db.Model):
+class Question(dbModel):
     # Questions tree identification properties
     id: Mapped[IntegerPrimaryKey]
     # # Improve: make sure that group_index is unique for each level/category/topic,
@@ -70,13 +105,21 @@ class Question(db.Model):
     question_title: Mapped[str] = mapped_column(String(200))
     filepath: Mapped[Optional[str]] = mapped_column(String(200))
     answer_type: Mapped['AnswerType']
-    answer_options: Mapped[str] = mapped_column(String(200))
+    answer_options: Mapped[Optional[str]] = mapped_column(String(200))
     correct_answer: Mapped[str] = mapped_column(String(200))
 
+    def to_json(self) -> dict[str, Any]:
+        return {
+            'question_title': self.question_title,
+            'answer_type': self.answer_type.value,
+            'answer_options': self.answer_options,
+        }
 
-class User(db.Model):
+
+class User(dbModel):
     # DB meta-properties
     id: Mapped[IntegerPrimaryKey]
+    uuid: Mapped[str] = mapped_column(String(200), default=lambda: str(uuid.uuid4()))
     timestamp: Mapped[datetime.datetime] = mapped_column(default=datetime.datetime.utcnow)
 
     # User information
@@ -85,10 +128,9 @@ class User(db.Model):
 
     # Progress in the test
     start_level: Mapped['LanguageLevel']
-    finished: Mapped[bool] = mapped_column(default=False)
 
 
-class ProgressStep(db.Model):
+class ProgressStep(dbModel):
     user_id: Mapped[IntegerPrimaryKey] = mapped_column(ForeignKey('user.id'))
     user: Mapped['User'] = relationship()
     step_number: Mapped[IntegerPrimaryKey]
@@ -135,7 +177,7 @@ def get_questions_counts(level: LanguageLevel) -> Iterable[QuestionCountEntry]:
     return result
 
 
-def generate_questions_batch(
+def generate_progress_steps_batch(
         question_counts: list[QuestionCountEntry],
         user_id: int,
         current_step_number: int,
@@ -148,7 +190,10 @@ def generate_questions_batch(
             Question.category == entry.category,
             Question.answer_type == entry.answer_type,
             Question.topic_title == entry.topic_title,
-        ).order_by(Question.id).offset(group_question_index).first()[0]
+        ).order_by(Question.id).offset(group_question_index).first()
+        if question_id is None:
+            logger.critical(f"Failed to find question for {entry}. User: {user_id}. Level: {level}.")
+            return
         db_session.add(ProgressStep(
             user_id=user_id,
             step_number=step_number,
@@ -198,17 +243,17 @@ def start():
     )
     db_session.add(user)
     db_session.commit()
-    flask_session.clear()
     flask_session['user_id'] = user.id
     flask_session['current_step_number'] = 0
+    flask_session.modified = True
     return 'OK'
 
 
 class NextStepSchema(Schema):
-    answer = fields.String()
+    answer = fields.String(load_default=None)
 
 
-def process_stats(stats: list[PassedLevelStats]) -> tuple[None, LanguageLevel] | tuple[LanguageLevel, None]:
+def process_stats(stats: list[PassedLevelStats]) -> tuple[Optional[LanguageLevel], Optional[LanguageLevel]]:
     next_level: Optional[LanguageLevel] = None
     finished_with_level: Optional[LanguageLevel] = None
     if len(stats) >= 2 and stats[-1].has_passed() != stats[-2].has_passed():
@@ -223,12 +268,12 @@ def process_stats(stats: list[PassedLevelStats]) -> tuple[None, LanguageLevel] |
             next_level = LanguageLevel(stats[0].level + 1)
     else:
         if stats[-1].level == MIN_LANGUAGE_LEVEL:
-            finished_with_level = MIN_LANGUAGE_LEVEL
+            finished_with_level = LanguageLevel.A_0
         else:
-            next_level = LanguageLevel(stats[0].level - 1)
+            next_level = stats[0].level - 1
 
     assert finished_with_level is None and next_level is not None or \
-              finished_with_level is not None and next_level is None, 'Exactly one of the values must be set'
+              finished_with_level is None and next_level is None, 'Exactly one of the values must be set'
     return finished_with_level, next_level
 
 
@@ -250,10 +295,18 @@ def next_step():
     current_step_number = flask_session['current_step_number']
     next_level_step_number = flask_session.get('next_level_step_number')
 
-    if answer is not None:
-        if current_step_number != 0 or next_level_step_number is not None:
+    if answer is None:
+        if current_step_number != 0:
             return 'Answer can be missing only for the first question', 400
 
+        user = db_session.query(User).filter(User.id == user_id).first()
+        generate_progress_steps_batch(
+            question_counts=get_questions_counts(user.start_level),
+            user_id=user_id,
+            current_step_number=0,
+            level=user.start_level,
+        )
+    else:
         current_progress_step = db_session.query(ProgressStep).filter(
             ProgressStep.user_id == user_id,
             ProgressStep.step_number == current_step_number,
@@ -261,51 +314,190 @@ def next_step():
         current_progress_step.answer = answer  # Save the answer
         db_session.commit()
 
-    if next_level_step_number is None:
-        user = db_session.query(User).filter(User.id == user_id).first()
-        generate_questions_batch(
-            question_counts=get_questions_counts(user.start_level),
-            user_id=user_id,
-            current_step_number=0,
-            level=user.start_level,
-        )
-    elif current_step_number == next_level_step_number:
+    if current_step_number == next_level_step_number:
         stats = get_passed_levels_stats(user_id)  # Always has at least one element
         finished_with_level, next_level = process_stats(stats)
         if finished_with_level is not None:
             flask_session.pop('current_step_number')
             flask_session.pop('next_level_step_number')
+            user = db_session.query(User).filter(User.id == user_id).first()
             db_session.commit()
-            return Response(status=HTTPStatus.SEE_OTHER)
+            return jsonify({'user_uuid': user.uuid}), 303
         else:  # next_level is not None
-            generate_questions_batch(
+            generate_progress_steps_batch(
                 question_counts=get_questions_counts(next_level),
                 user_id=user_id,
                 current_step_number=current_step_number,
                 level=next_level,
             )
 
-    flask_session['current_step_number'] = current_step_number + 1
+    current_step_number += 1
+    flask_session['current_step_number'] = current_step_number
     # Get new question
     next_question = db_session.query(Question).join(ProgressStep).filter(
         ProgressStep.user_id == user_id,
         ProgressStep.step_number == current_step_number,
     ).first()
-    return jsonify({
-        'question_title': next_question.question_title,
-        'answer_type': next_question.answer_type.name,
-        'answer_options': next_question.answer_options,
-    })
+    return jsonify(next_question.to_json())
 
 
-@api_blueprint.route('/results/<user_id>')
-def results(user_id):
+class TopicSuccessData(NamedTuple):
+    category: QuestionCategory
+    topic_title: str
+    questions_count: int
+    correct_answers_count: int
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            'category': self.category.value,
+            'topic_title': self.topic_title,
+            'questions_count': self.questions_count,
+            'correct_answers_count': self.correct_answers_count,
+        }
+
+
+class SummarizedStats(NamedTuple):
+    detected_level: LanguageLevel
+    total_questions: int
+    total_correct_answers: int
+    per_topic_breakdown: list[TopicSuccessData]
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            'detected_level': self.detected_level.value,
+            'total_questions': self.total_questions,
+            'total_correct_answers': self.total_correct_answers,
+            'per_topic_breakdown': [topic.to_json() for topic in self.per_topic_breakdown],
+        }
+
+
+def compute_summarized_stats(user_id: int) -> Optional[SummarizedStats]:
+    """Compute per-topic results as well as total number of questions and correct answers."""
+    correct_answers_sum = func.sum(sqlalchemy.case(*[(ProgressStep.answer == Question.correct_answer, 1)], else_=0))
+    total_answers_num = func.count(ProgressStep.question_id)
+    per_topic_query = db_session.query(
+        Question.category,
+        Question.topic_title,
+        total_answers_num,
+        correct_answers_sum,
+    ).join(ProgressStep).filter(
+        ProgressStep.user_id == user_id,
+    ).group_by(Question.category, Question.topic_title)
+
+    per_topic_breakdown = []
+    total_questions = 0
+    total_correct_answers = 0
+    for category, topic_title, questions_count, correct_answers_count in per_topic_query:
+        per_topic_breakdown.append(TopicSuccessData(
+            category=category,
+            topic_title=topic_title,
+            questions_count=int(questions_count),
+            correct_answers_count=int(correct_answers_count),
+        ))
+        total_questions += questions_count
+        total_correct_answers += correct_answers_count
+
+    finished_level, _ = process_stats(get_passed_levels_stats(user_id))
+    if finished_level is None:
+        return None
+
+    return SummarizedStats(
+        detected_level=finished_level,
+        total_questions=total_questions,
+        total_correct_answers=total_correct_answers,
+        per_topic_breakdown=per_topic_breakdown,
+    )
+
+
+class PassedStep(NamedTuple):
+    question_title: str
+    language_level: LanguageLevel
+    answer_type: AnswerType
+    answer_options: str
+    filepath: Optional[str]
+    correct_answer: str
+    given_answer: str
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            'question_title': self.question_title,
+            'language_level': self.language_level.value,
+            'answer_type': self.answer_type.value,
+            'answer_options': self.answer_options,
+            'correct_answer': self.correct_answer,
+            'filepath': self.filepath,
+            'given_answer': self.given_answer,
+            'correct_answer': self.correct_answer,
+        }
+
+
+def compute_detailed_stats(user_id: int) -> list[PassedStep]:
+    """Get all steps passed by the user, with the answers and expected correct answers."""
+    passed_steps_query = db_session.query(
+        Question.question_title,
+        Question.level,
+        Question.answer_type,
+        Question.answer_options,
+        Question.filepath,
+        Question.correct_answer,
+        ProgressStep.answer,
+    ).join(Question).filter(
+        ProgressStep.user_id == user_id,
+    ).order_by(ProgressStep.step_number)
+
+    passed_steps = []
+    for question_title, level, answer_type, answer_options, filepath, correct_answer, given_answer in passed_steps_query:
+        passed_steps.append(PassedStep(
+            question_title=question_title,
+            language_level=level,
+            answer_type=answer_type,
+            answer_options=answer_options,
+            filepath=filepath,
+            correct_answer=correct_answer,
+            given_answer=given_answer,
+        ))
+
+    return passed_steps
+
+
+@api_blueprint.route('/results/<user_uuid>/summarized', methods=['GET'])
+def results_summarized(user_uuid):
+    """
+    Returns the results of the test for the user with the given identifier.
+
+    If the user is still in progress, returns an error.
+    """
+    # Check that the user with the given id exists
+    user = db_session.query(User).filter(User.uuid == user_uuid).first()
+    if user is None:
+        return 'User not found', 404
+
+    stats = compute_summarized_stats(user.id)
+    if stats is None:
+        return 'User is still in progress', 400
+
+    return jsonify(stats.to_json())
+
+
+@api_blueprint.route('/results/<user_uuid>/defailed', methods=['GET'])
+def results_detailed(user_uuid):
     """
     Returns the results of the test for the user with the given identifier.
 
     If the user is still in the progress, returns an error.
     """
+    # Check that the user with the given id exists
+    user = db_session.query(User).filter(User.uuid == user_uuid).first()
+    if user is None:
+        return 'User not found', 404
 
+    # Check that the user has finished the test
+    finished_level, _ = process_stats(get_passed_levels_stats(user.id))
+    if finished_level is None:
+        return 'User is still in progress', 400
+
+    passed_steps = compute_detailed_stats(user.id)
+    return jsonify([step.to_json() for step in passed_steps])
 
 
 def create_app(db_name = 'mooi_develop_db'):
@@ -314,6 +506,7 @@ def create_app(db_name = 'mooi_develop_db'):
     app.config["SQLALCHEMY_DATABASE_URI"] = f'{os.environ["DATABASE_URI"]}/{db_name}'
     app.config["SESSION_TYPE"] = "sqlalchemy"
     app.config['SESSION_SQLALCHEMY'] = db
+    app.config['SESSION_PERMANENT'] = True
     db.init_app(app)
     Session(app)
     with app.app_context():
