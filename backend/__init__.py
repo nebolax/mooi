@@ -5,7 +5,7 @@ import random
 from typing import Any, Iterable, Literal, NamedTuple, Optional
 from typing_extensions import Annotated
 import uuid
-from flask import Blueprint, Flask, Response, jsonify, request, session as flask_session, url_for
+from flask import Blueprint, Flask, Response, jsonify, request, send_from_directory, session as flask_session, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_sqlalchemy.session import Session as SqlAlchemySession
 from dotenv import load_dotenv
@@ -19,6 +19,7 @@ import sqlalchemy
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from sqlalchemy import ForeignKey, MetaData, String, func
 from sqlalchemy.orm import scoped_session
+from flask_cors import CORS
 
 load_dotenv()
 
@@ -500,8 +501,13 @@ def results_detailed(user_uuid):
     return jsonify([step.to_json() for step in passed_steps])
 
 
+@api_blueprint.route('/media/<path:path>', methods=['GET'])
+def send_file(path):
+    return send_from_directory('files', path)
+
+
 def create_app(db_name = 'mooi_develop_db'):
-    app = Flask(__name__, static_folder='../frontend/build', static_url_path='/')
+    app = Flask(__name__)
     app.secret_key = os.environ["SECRET_KEY"]
     app.config["SQLALCHEMY_DATABASE_URI"] = f'{os.environ["DATABASE_URI"]}/{db_name}'
     app.config["SESSION_TYPE"] = "sqlalchemy"
@@ -509,6 +515,7 @@ def create_app(db_name = 'mooi_develop_db'):
     app.config['SESSION_PERMANENT'] = True
     db.init_app(app)
     Session(app)
+    CORS(app)
     with app.app_context():
         metadata = MetaData()
         metadata.reflect(bind=db.engine)
@@ -518,9 +525,12 @@ def create_app(db_name = 'mooi_develop_db'):
     @app.route('/')
     def index():
         return app.send_static_file('index.html')
+    
+    @app.route('/static/<path:path>')
+    def send_static_file(path):
+        return send_from_directory('../frontend/build', path)
 
     app.register_blueprint(api_blueprint)
-
     return app
 
 if __name__ == '__main__':
