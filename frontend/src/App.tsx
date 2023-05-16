@@ -1,7 +1,15 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import logo from './logo.svg';
-import { Box, Button, Checkbox, FormControlLabel, FormGroup, Radio, RadioGroup, TextField, ThemeProvider, createTheme } from '@mui/material';
+import { Backdrop, Box, Button, Checkbox, CircularProgress, FormControlLabel, FormGroup, FormLabel, Paper, Radio, RadioGroup, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, ThemeProvider, createTheme } from '@mui/material';
 import { useEffect, useState } from 'react';
+
+
+let SERVER_ADDRESS: string;
+if (process.env.NODE_ENV === 'development') {
+  SERVER_ADDRESS = 'http://localhost:5000/api';
+} else {
+  SERVER_ADDRESS = window.location.origin + '/api';
+}
 
 
 enum AnswerType {
@@ -14,6 +22,33 @@ enum MediaType {
   TEXT = 'text',
   AUDIO = 'audio',
   NONE = 'none',
+}
+
+enum LanguageLevel {
+  A_0 = 0,
+  A1_1 = 1,
+  A1_2 = 2,
+  A2_1 = 3,
+  A2_2 = 4,
+  B1_1 = 5,
+  B1_2 = 6,
+  B1_3 = 7,
+  B2_1 = 8,
+  B2_2 = 9,
+}
+
+enum QuestionCategory {
+  GRAMMAR = 'grammar',
+  VOCABULARY = 'vocabulary',
+  READING = 'reading',
+  LISTENING = 'listening',
+}
+
+const QuestionCategoryRu = {
+  [QuestionCategory.GRAMMAR]: 'Грамматика',
+  [QuestionCategory.VOCABULARY]: 'Лексика',
+  [QuestionCategory.READING]: 'Чтение',
+  [QuestionCategory.LISTENING]: 'Аудирование',
 }
 
 
@@ -47,6 +82,25 @@ const theme = createTheme(
   }
 );
 
+function getLanguageLevelName(enumValue: number): string | undefined {
+  const enumKey = Object.keys(LanguageLevel).find((key) => LanguageLevel[key as keyof typeof LanguageLevel] === enumValue);
+  return (enumKey as string).replaceAll('_', '.');
+}
+
+
+interface InProgressQuestionProps {
+  nextStepCallback: (answer: string) => void;
+}
+
+interface QuestionResultProps {
+  givenAnswer: string;
+  correctAnswer: string;
+  nextStepCallback: () => void;
+  previousStepCallback: () => void;
+  nextStepAllowed: boolean;
+  previousStepAllowed: boolean;
+}
+
 
 interface QuestionProps {
   title: string;
@@ -54,7 +108,8 @@ interface QuestionProps {
   serializedAnswerOptions: string | null;
   mediaType: MediaType;
   filepath: string | null;
-  nextStepCallback: (answer: string) => void;
+  inProgressProps: InProgressQuestionProps | null;
+  resultProps: QuestionResultProps | null;
 }
 
 
@@ -64,7 +119,8 @@ const TEST_QUESTION_SELECT_ONE: QuestionProps = {
   serializedAnswerOptions: JSON.stringify(['Москва', 'Париж', 'Лондон', 'Берлин']),
   mediaType: MediaType.NONE,
   filepath: null,
-  nextStepCallback: (answer: string) => console.log('answer', answer),
+  inProgressProps: { nextStepCallback: (answer: string) => console.log('answer', answer) },
+  resultProps: null,
 }
 
 
@@ -74,7 +130,8 @@ const TEST_QUESTION_SELECT_MULTIPLE: QuestionProps = {
   serializedAnswerOptions: JSON.stringify(['Качественные товары', 'Низкие цены', 'Быстрая доставка', 'Хороший сервис']),
   mediaType: MediaType.NONE,
   filepath: null,
-  nextStepCallback: (answer: string) => console.log('answer', answer),
+  inProgressProps: { nextStepCallback: (answer: string) => console.log('answer', answer) },
+  resultProps: null,
 }
 
 
@@ -84,17 +141,19 @@ const TEST_QUESTION_FILL_THE_BLANK: QuestionProps = {
   serializedAnswerOptions: null,
   mediaType: MediaType.NONE,
   filepath: null,
-  nextStepCallback: answer => console.log('answer', answer),
+  inProgressProps: { nextStepCallback: (answer: string) => console.log('answer', answer) },
+  resultProps: null,
 }
 
 
 const TEST_QUESTION_AUDIO: QuestionProps = {
   title: 'Прослушайте аудио и выберите правильный ответ.',
   answerType: AnswerType.SELECT_ONE,
-  serializedAnswerOptions: JSON.stringify(['Кювет', 'Кувшин', 'Кувейт', 'Кувейт']),
+  serializedAnswerOptions: JSON.stringify(['Кювет', 'Кувшин', 'Кувейт']),
   mediaType: MediaType.AUDIO,
-  filepath: 'http://localhost:5000/api/media/barev-dzes.mp3',
-  nextStepCallback: answer => console.log('answer', answer),
+  filepath: 'barev-dzes.mp3',
+  inProgressProps: { nextStepCallback: (answer: string) => console.log('answer', answer) },
+  resultProps: null,
 }
 
 
@@ -103,8 +162,27 @@ const TEST_QUESTION_TEXT: QuestionProps = {
   answerType: AnswerType.SELECT_ONE,
   serializedAnswerOptions: JSON.stringify(['Аккумулятор', 'Кружка', 'Сапоги']),
   mediaType: MediaType.TEXT,
-  filepath: 'http://localhost:5000/api/media/vek-volkodav.txt',
-  nextStepCallback: answer => console.log('answer', answer),
+  filepath: 'vek-volkodav.txt',
+  inProgressProps: { nextStepCallback: (answer: string) => console.log('answer', answer) },
+  resultProps: null,
+}
+
+
+const TEST_QUESTION_RESULT: QuestionProps = {
+  title: 'Почему вам нравится наша компания?',
+  answerType: AnswerType.SELECT_MULTIPLE,
+  serializedAnswerOptions: JSON.stringify(['Качественные товары', 'Низкие цены', 'Быстрая доставка', 'Хороший сервис']),
+  mediaType: MediaType.NONE,
+  filepath: null,
+  inProgressProps: null,
+  resultProps: {
+    givenAnswer: '0,1',
+    correctAnswer: '0,1,2',
+    nextStepCallback: () => console.log('next step'),
+    previousStepCallback: () => console.log('previous step'),
+    nextStepAllowed: true,
+    previousStepAllowed: false,
+  },
 }
 
 
@@ -214,22 +292,120 @@ function QuestionComponent(props: QuestionProps) {
       {mediablock}
     </Box>
   }
+  const inProgressNavigation: JSX.Element = (
+    <Button
+      disabled={stringifiedAnswer === null}
+      variant="contained"
+      onClick={() => {
+        const answer = stringifiedAnswer!!;
+        setFillTheBlankAnswer('');
+        setMultipleAnswer([]);
+        setSingleAnswer(null);
+        props.inProgressProps!!.nextStepCallback(answer)
+      }}
+      sx={{ float: "right" }}
+    >
+      Дальше
+    </Button>
+  );
+  const resultsNavigation: JSX.Element = (
+    <Box>
+      <Button
+        disabled={!props.resultProps!!.previousStepAllowed}
+        variant="contained"
+        onClick={() => { props.resultProps!!.previousStepCallback() }}
+        sx={{ float: "left" }}
+      >
+        Назад
+      </Button>
+      <Button
+        disabled={!props.resultProps!!.nextStepAllowed}
+        variant="contained"
+        onClick={() => { props.resultProps!!.nextStepCallback() }}
+        sx={{ float: "right" }}
+      >
+        Вперед
+      </Button>
+    </Box>
+  );
+  return (
+    // <Box display="flex" flexDirection="column" alignItems="center">
+    <Box
+    // sx={{ backgroundColor: "lightgreen" }}
+    // width={{ mobile: "95%", desktop: "50%" }}
+    // display="inline-block"
+    >
+      {titleBlock}
+      {answersBlock}
+      {props.inProgressProps && inProgressNavigation}
+      {props.resultProps && resultsNavigation}
+    </Box>
+    // </Box>
+  );
+}
+
+
+interface StartPageProps {
+  startCallback: (name: string, email: string, startLevelName: string) => void;
+}
+
+
+function StartPage(props: StartPageProps) {
+  const [name, setName] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
+  const [startLevelName, setStartLevelSerialized] = useState<string>('');
   return (
     <Box display="flex" flexDirection="column" alignItems="center">
       <Box
-        sx={{ backgroundColor: "lightgreen" }}
-        width={{ mobile: "95%", desktop: "50%" }}
+        // sx={{ backgroundColor: "lightgreen" }}
+        width={{ mobile: "95%", desktop: "30%" }}
         display="inline-block"
       >
-        {titleBlock}
-        {answersBlock}
-        <Button
-          disabled={stringifiedAnswer === null}
-          variant="contained"
-          onClick={() => props.nextStepCallback(stringifiedAnswer!!)}
-          sx={{ float: "right" }}
+        <FormGroup>
+          <TextField
+            label="Ваше полное имя"
+            variant="filled"
+            required={true}
+            sx={{ marginBottom: "20px" }}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+          <TextField
+            label="Ваш email"
+            variant="filled"
+            required={true}
+            sx={{ marginBottom: "20px" }}
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </FormGroup>
+        <FormLabel id="level-selection-label" required={true}>Ваш текущий уровень</FormLabel>
+        <RadioGroup
+          aria-labelledby='level-selection-label'
+          value={startLevelName}
+          onChange={(event) => setStartLevelSerialized(event.target.value)}
         >
-          Дальше
+          {
+            Object.entries(LanguageLevel).map(
+              ([key, value]) => {
+                if (typeof key === 'string' && typeof value == 'string') return null;
+                return <FormControlLabel
+                  key={key}
+                  value={key}
+                  control={<Radio />}
+                  label={value === 0 ? 'Не знаю' : key.replaceAll('_', '.')}
+                />
+              }
+            )
+          }
+        </RadioGroup>
+        <Button
+          variant="contained"
+          sx={{ float: "right" }}
+          disabled={startLevelName === '' || name === '' || email === ''}
+          onClick={() => props.startCallback(name, email, startLevelName)}
+        >
+          Начать тест
         </Button>
       </Box>
     </Box>
@@ -238,16 +414,258 @@ function QuestionComponent(props: QuestionProps) {
 
 
 function MainPage() {
+  const navigate = useNavigate();
+  const [currentQuestion, setCurrentQuestion] = useState<QuestionProps | null>(null);
+  useEffect(() => {
+    console.log('REQUEST')
+    fetch(SERVER_ADDRESS + '/status', { credentials: 'include' }).then((response) => response.json()).then((data) => {
+      if (data.status === 'FINISHED') {
+        console.log('finished');
+        navigate('/results/' + data.user_uuid, { replace: true });
+        return;
+      } else if (data.status === 'IN_PROGRESS') {
+        const questionData = data.question;
+        setCurrentQuestion({
+          title: questionData.question_title,
+          answerType: questionData.answer_type as AnswerType,
+          serializedAnswerOptions: questionData.answer_options,
+          filepath: questionData.filepath,
+          mediaType: MediaType[questionData.media_type as keyof typeof MediaType],
+          inProgressProps: { nextStepCallback: nextStepCallback },
+          resultProps: null,
+        })
+      } else if (data.status === 'NOT_STARTED') {
+        setCurrentQuestion(null);
+      }
+    });
+  }, []);
+
+  const nextStepCallback = (answer: string) => {
+    fetch(
+      SERVER_ADDRESS + '/next-step',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          answer: answer,
+        })
+      }
+    ).then((response) => response.json()).then((data) => {
+      if (data.finished) {
+        console.log('finished');
+        navigate('/results/' + data.user_uuid, { replace: true });
+        return;
+      }
+      setCurrentQuestion({
+        title: data.question_title,
+        answerType: data.answer_type as AnswerType,
+        serializedAnswerOptions: data.answer_options,
+        filepath: data.filepath,
+        mediaType: MediaType[data.media_type as keyof typeof MediaType],
+        inProgressProps: { nextStepCallback: nextStepCallback },
+        resultProps: null,
+      })
+    })
+  }
+
+  const doStart = (name: string, email: string, startLevelName: string) => {
+    if (LanguageLevel[startLevelName as keyof typeof LanguageLevel] === LanguageLevel.A_0) {
+      startLevelName = 'A1_1';
+    }
+    console.log(name, email, startLevelName);
+    fetch(
+      SERVER_ADDRESS + '/start',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          full_name: name,
+          email: email,
+          start_level: startLevelName,
+        })
+      }
+    ).then(() => {
+      fetch(
+        SERVER_ADDRESS + '/next-step',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({}),
+        },
+      ).then(
+        (response) => response.json(),
+      ).then((data) => {
+        setCurrentQuestion({
+          title: data.question_title,
+          answerType: data.answer_type as AnswerType,
+          serializedAnswerOptions: data.answer_options,
+          filepath: SERVER_ADDRESS + '/media/' + data.filepath,
+          mediaType: MediaType[data.media_type as keyof typeof MediaType],
+          inProgressProps: { nextStepCallback: nextStepCallback },
+          resultProps: null,
+        })
+      })
+    })
+  }
+  let questionComponent: JSX.Element | null = null;
+  if (currentQuestion !== null) {
+    questionComponent = <QuestionComponent {...currentQuestion} />
+  }
   return (
     <Box>
-      <QuestionComponent {...TEST_QUESTION_TEXT} />
+      {/* <QuestionComponent {...TEST_QUESTION_TEXT} /> */}
+      {currentQuestion === null ? <StartPage startCallback={doStart} /> : questionComponent}
     </Box>
   );
 }
 
 
-function ResultsPage() {
-  return <h1>Results page</h1>
+interface SummarizedTopicResult {
+  category: QuestionCategory;
+  topicTitle: string;
+  correctAnswersCount: number;
+  questionsCount: number;
+}
+
+interface SummarizedResultsData {
+  detectedLevel: LanguageLevel;
+  perTopicBreakdown: SummarizedTopicResult[];
+}
+
+function SummarizedResultsPage() {
+  const navigate = useNavigate();
+  const { userUUID } = useParams();
+  const [summarizedResults, setSummarizedResults] = useState<SummarizedResultsData | null>(null);
+  useEffect(() => {
+    fetch(SERVER_ADDRESS + '/results/' + userUUID + '/summarized').then((response) => response.json()).then((data) => {
+      // console.log(data);
+      setSummarizedResults({
+        detectedLevel: data.detected_level as LanguageLevel,
+        perTopicBreakdown: data.per_topic_breakdown.map((topicResult: any) => {
+          return {
+            category: topicResult.category as QuestionCategory,
+            topicTitle: topicResult.topic_title,
+            correctAnswersCount: topicResult.correct_answers_count,
+            questionsCount: topicResult.questions_count,
+          }
+        })
+      })
+    })
+  }, []);
+  const loadingBlock: JSX.Element = (
+    <Backdrop open={true}>
+      <CircularProgress />
+    </Backdrop>
+  );
+  if (summarizedResults === null) return loadingBlock;
+
+  let recommendedLevelStr: string;
+  if (summarizedResults.detectedLevel === LanguageLevel.B2_2) {
+    recommendedLevelStr = 'Поздравляем! Вы отлично знаете голландский'
+  } else {
+    recommendedLevelStr = 'Рекомендуем вам пойти в группу ' + getLanguageLevelName(summarizedResults.detectedLevel + 1);
+  }
+  const resultsBlock: JSX.Element = (
+    <Box display="flex" flexDirection="column" alignItems="center">
+      <Box
+        // sx={{ backgroundColor: "lightgreen" }}
+        width={{ mobile: "95%", desktop: "50%" }}
+        display="inline-block"
+      >
+        <Box sx={{
+          // backgroundColor: "lightgreen",
+          display: "flex",
+          justifyContent: "space-between",
+        }}>
+          <Box component="h1" sx={{ fontSize: { mobile: "1.5em", desktop: "2em" } }}>Результаты</Box>
+          <Box sx={{ display: "flex", justifyContent: "center", flexDirection: "column" }}>
+            <Button
+              variant="contained"
+              sx={{ height: "40px" }}
+              onClick={() => { navigate('/results/' + userUUID + '/detailed') }}
+            >
+              Подробнее
+            </Button>
+          </Box>
+        </Box>
+        <h3>Ваш уровень: {getLanguageLevelName(summarizedResults?.detectedLevel)}</h3>
+        <h3>{recommendedLevelStr}</h3>
+        <h3>Результаты по темам:</h3>
+        {/* Table with results */}
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ paddingLeft: 0, fontWeight: "bold" }}>Тема</TableCell>
+                <TableCell sx={{ paddingLeft: 0, fontWeight: "bold" }}>Результат</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {summarizedResults.perTopicBreakdown.map((topicResult) => {
+                console.log(topicResult);
+                return (
+                  <TableRow>
+                    <TableCell sx={{ paddingLeft: 0 }}>{QuestionCategoryRu[topicResult.category]}: {topicResult.topicTitle}</TableCell>
+                    <TableCell sx={{ paddingLeft: 0 }}>{Math.round(topicResult.correctAnswersCount / topicResult.questionsCount * 100)}% ({topicResult.correctAnswersCount} / {topicResult.questionsCount})</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
+    </Box>
+  );
+  return resultsBlock;
+}
+
+
+interface DetailedResultsData {
+}
+
+
+function DetailedResultsPage() {
+  console.log('aaaa', window.location)
+  const navigate = useNavigate();
+  const { userUUID } = useParams();
+  const [detailedResults, setDetailedResults] = useState<DetailedResultsData | null>(null);
+  const resultsBlock: JSX.Element = (
+    <Box display="flex" flexDirection="column" alignItems="center">
+      <Box
+        // sx={{ backgroundColor: "lightgreen" }}
+        width={{ mobile: "95%", desktop: "50%" }}
+        display="inline-block"
+      >
+        <Box sx={{
+          // backgroundColor: "lightgreen",
+          display: "flex",
+          justifyContent: "space-between",
+        }}>
+          <Box component="h1" sx={{ fontSize: { mobile: "1.5em", desktop: "2em" } }}>Результаты</Box>
+          <Box sx={{ display: "flex", justifyContent: "center", flexDirection: "column" }}>
+            <Button
+              variant="contained"
+              sx={{ height: "40px" }}
+              onClick={() => { navigate('/results/' + userUUID) }}
+            >
+              По темам
+            </Button>
+          </Box>
+        </Box>
+        <QuestionComponent {...TEST_QUESTION_RESULT} />
+      </Box>
+    </Box>
+  );
+  return resultsBlock;
 }
 
 
@@ -262,7 +680,8 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<MainPage />} />
-          <Route path="/results/:uuid" element={<ResultsPage />} />
+          <Route path="/results/:userUUID" element={<SummarizedResultsPage />} />
+          <Route path="/results/:userUUID/detailed" element={<DetailedResultsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>

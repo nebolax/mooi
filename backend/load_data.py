@@ -1,10 +1,12 @@
+import json
 from pathlib import Path
 import random
 import shutil
 import sys
 from openpyxl import load_workbook
+from sqlalchemy import MetaData
 
-from __init__ import AnswerType, LanguageLevel, Question, QuestionCategory, create_app, db_session
+from __init__ import AnswerType, LanguageLevel, Question, QuestionCategory, create_app, db_session, db
 
 
 ROOT_DIR_PATH = Path(__file__).resolve().parent.parent / 'test_data'
@@ -43,7 +45,7 @@ def process_topic_file(level: LanguageLevel, category: QuestionCategory, topic_f
                 other_answers = row_values[2:]
                 all_answers = [correct_answer_value] + other_answers
                 random.shuffle(all_answers)
-                answer_options = ','.join(all_answers)
+                answer_options = json.dumps(all_answers)
                 correct_answer = all_answers.index(correct_answer_value)
             elif answer_type == AnswerType.SELECT_MULTIPLE:
                 correct_answers_num = int(row_values[1])
@@ -51,7 +53,7 @@ def process_topic_file(level: LanguageLevel, category: QuestionCategory, topic_f
                 other_answers = row_values[2 + correct_answers_num:]
                 all_answers = correct_answers_values + other_answers
                 random.shuffle(all_answers)
-                answer_options = ','.join(all_answers)
+                answer_options = json.dumps(all_answers)
                 correct_answer = ','.join([str(all_answers.index(value)) for value in correct_answers_values])
             elif answer_type == AnswerType.FILL_THE_BLANK:
                 answer_options = None
@@ -120,6 +122,10 @@ print(f'Loaded {len(collected_file_paths)} files')
 
 app = create_app()
 with app.app_context():
+    metadata = MetaData()
+    metadata.reflect(bind=db.engine)
+    metadata.drop_all(bind=db.engine)
+    db.create_all()
     db_session.add_all(collected_questions)
     db_session.commit()
     print('Questions added to database')

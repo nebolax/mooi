@@ -110,10 +110,17 @@ class Question(dbModel):
     correct_answer: Mapped[str] = mapped_column(String(200))
 
     def to_json(self) -> dict[str, Any]:
+        media_type = 'none'
+        if self.category == QuestionCategory.READING:
+            media_type = 'text'
+        elif self.category == QuestionCategory.LISTENING:
+            media_type = 'audio'
         return {
             'question_title': self.question_title,
             'answer_type': self.answer_type.value,
             'answer_options': self.answer_options,
+            'filepath': self.filepath,
+            'media_type': media_type,
         }
 
 
@@ -191,7 +198,7 @@ def generate_progress_steps_batch(
             Question.category == entry.category,
             Question.answer_type == entry.answer_type,
             Question.topic_title == entry.topic_title,
-        ).order_by(Question.id).offset(group_question_index).first()
+        ).order_by(Question.id).offset(group_question_index).first()[0]
         if question_id is None:
             logger.critical(f"Failed to find question for {entry}. User: {user_id}. Level: {level}.")
             return
@@ -210,6 +217,13 @@ class PassedLevelStats(NamedTuple):
 
     def has_passed(self) -> bool:
         return self.success_percentage >= REQUIRED_SUCCESS_PERCENTAGE
+
+
+def has_answered_pending_questions(user_id: int) -> bool:
+    return db_session.query(ProgressStep).filter(
+        ProgressStep.user_id == user_id,
+        ProgressStep.answer.is_(None),
+    ).count() == 0
 
 
 def get_passed_levels_stats(user_id: int) -> list[PassedLevelStats]:
@@ -273,8 +287,8 @@ def process_stats(stats: list[PassedLevelStats]) -> tuple[Optional[LanguageLevel
         else:
             next_level = stats[0].level - 1
 
-    assert finished_with_level is None and next_level is not None or \
-              finished_with_level is None and next_level is None, 'Exactly one of the values must be set'
+    assert (finished_with_level is None and next_level is not None) or \
+              (finished_with_level is not None and next_level is None), 'Exactly one of the values must be set'
     return finished_with_level, next_level
 
 
@@ -286,6 +300,7 @@ def next_step():
     If the user is still in the progress, returns the next question.
     If all required questions have been answered, returns a corresponding message.
     """
+    logger.debug('Next step called')
     try:
         data = NextStepSchema().load(request.json)
     except ValidationError as e:
@@ -298,9 +313,9 @@ def next_step():
 
     if answer is None:
         if current_step_number != 0:
-            return 'Answer can be missing only for the first question', 400
+            return jsonify({'error': 'Answer can be missing only for the first question'}), 400
 
-        user = db_session.query(User).filter(User.id == user_id).first()
+        user: User = db_session.query(User).filter(User.id == user_id).first()
         generate_progress_steps_batch(
             question_counts=get_questions_counts(user.start_level),
             user_id=user_id,
@@ -323,7 +338,7 @@ def next_step():
             flask_session.pop('next_level_step_number')
             user = db_session.query(User).filter(User.id == user_id).first()
             db_session.commit()
-            return jsonify({'user_uuid': user.uuid}), 303
+            return jsonify({'user_uuid': user.uuid, 'finished': True})
         else:  # next_level is not None
             generate_progress_steps_batch(
                 question_counts=get_questions_counts(next_level),
@@ -395,9 +410,11 @@ def compute_summarized_stats(user_id: int) -> Optional[SummarizedStats]:
             questions_count=int(questions_count),
             correct_answers_count=int(correct_answers_count),
         ))
-        total_questions += questions_count
-        total_correct_answers += correct_answers_count
+        total_questions += int(questions_count)
+        total_correct_answers += int(correct_answers_count)
 
+    if has_answered_pending_questions(user_id) is False:
+        return None
     finished_level, _ = process_stats(get_passed_levels_stats(user_id))
     if finished_level is None:
         return None
@@ -480,7 +497,7 @@ def results_summarized(user_uuid):
     return jsonify(stats.to_json())
 
 
-@api_blueprint.route('/results/<user_uuid>/defailed', methods=['GET'])
+@api_blueprint.route('/results/<user_uuid>/detailed', methods=['GET'])
 def results_detailed(user_uuid):
     """
     Returns the results of the test for the user with the given identifier.
@@ -493,12 +510,38 @@ def results_detailed(user_uuid):
         return 'User not found', 404
 
     # Check that the user has finished the test
+    if has_answered_pending_questions(user.id) is False:
+        return 'User is still in progress', 400
     finished_level, _ = process_stats(get_passed_levels_stats(user.id))
     if finished_level is None:
         return 'User is still in progress', 400
 
     passed_steps = compute_detailed_stats(user.id)
     return jsonify([step.to_json() for step in passed_steps])
+
+
+@api_blueprint.route('/status', methods=['GET'])
+def status():
+    if 'user_id' not in flask_session:
+        return jsonify({'status': 'NOT_STARTED'})
+
+    user_id = flask_session['user_id']
+    user = db_session.query(User).filter(User.id == user_id).first()
+    answered_pending = has_answered_pending_questions(user_id)
+    if answered_pending is True:
+        finished_with_level, _ = process_stats(get_passed_levels_stats(user_id))
+        if finished_with_level is not None:
+            return jsonify({'status': 'FINISHED', 'user_uuid': user.uuid})
+
+    if 'current_step_number' not in flask_session:
+        return jsonify({'status': 'NOT_STARTED'})
+
+    current_step_number = flask_session['current_step_number']
+    next_question = db_session.query(Question).join(ProgressStep).filter(
+        ProgressStep.user_id == user_id,
+        ProgressStep.step_number == current_step_number,
+    ).first()
+    return jsonify({'status': 'IN_PROGRESS', 'question': next_question.to_json()})
 
 
 @api_blueprint.route('/media/<path:path>', methods=['GET'])
@@ -515,12 +558,12 @@ def create_app(db_name = 'mooi_develop_db'):
     app.config['SESSION_PERMANENT'] = True
     db.init_app(app)
     Session(app)
-    CORS(app)
-    with app.app_context():
-        metadata = MetaData()
-        metadata.reflect(bind=db.engine)
-        metadata.drop_all(bind=db.engine)
-        db.create_all()  # Happens after Session() initialization in order to create the sessions table
+    CORS(app, supports_credentials=True)
+    # with app.app_context():
+    #     metadata = MetaData()
+    #     metadata.reflect(bind=db.engine)
+    #     metadata.drop_all(bind=db.engine)
+    #     db.create_all()  # Happens after Session() initialization in order to create the sessions table
 
     @app.route('/')
     def index():
