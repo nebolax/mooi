@@ -168,7 +168,7 @@ const TEST_QUESTION_TEXT: QuestionProps = {
 }
 
 
-const TEST_QUESTION_RESULT: QuestionProps = {
+const TEST_QUESTION_SELECT_MULTIPLE_RESULT: QuestionProps = {
   title: 'Почему вам нравится наша компания?',
   answerType: AnswerType.SELECT_MULTIPLE,
   serializedAnswerOptions: JSON.stringify(['Качественные товары', 'Низкие цены', 'Быстрая доставка', 'Хороший сервис']),
@@ -186,20 +186,56 @@ const TEST_QUESTION_RESULT: QuestionProps = {
 }
 
 
+const TEST_QUESTION_FILL_THE_BLANK_RESULT: QuestionProps = {
+  title: 'Ваш любимый язык программирования - <пропуск>. Надеемся, что у вас хорошее настроение. Хорошего дня!',
+  answerType: AnswerType.FILL_THE_BLANK,
+  serializedAnswerOptions: null,
+  mediaType: MediaType.NONE,
+  filepath: null,
+  inProgressProps: null,
+  resultProps: {
+    givenAnswer: 'Python',
+    correctAnswer: 'JavaScript',
+    nextStepCallback: () => console.log('next step'),
+    previousStepCallback: () => console.log('previous step'),
+    nextStepAllowed: true,
+    previousStepAllowed: false,
+  },
+}
+
+
 function QuestionComponent(props: QuestionProps) {
-  const [singleAnswer, setSingleAnswer] = useState<number | null>(null);
-  const [multipleAnswer, setMultipleAnswer] = useState<number[]>([]);
-  const [fillTheBlankAnswer, setFillTheBlankAnswer] = useState<string>('');
+  let [singleAnswer, setSingleAnswer] = useState<number | null>(null);
+  let [multipleAnswer, setMultipleAnswer] = useState<number[]>([]);
+  let [fillTheBlankAnswer, setFillTheBlankAnswer] = useState<string>('');
+
+  let [correctSingleAnswer, setCorrectSingleAnswer] = useState<number | null>(null);
+  let [correctMultipleAnswer, setCorrectMultipleAnswer] = useState<number[]>([]);
+  let [correctFillTheBlankAnswer, setCorrectFillTheBlankAnswer] = useState<string>('');
+
   const [textBlockContent, setTextBlockContent] = useState<string>('');
   let stringifiedAnswer: string | null;
   let titleBlock: JSX.Element | null = null;
   let answersBlock: JSX.Element | null = null;
   let mediablock: JSX.Element | null = null;
+  if (props.resultProps !== null) {
+    if (props.answerType === AnswerType.SELECT_ONE) {
+      singleAnswer = parseInt(props.resultProps.givenAnswer);
+      correctSingleAnswer = parseInt(props.resultProps.correctAnswer);
+    } else if (props.answerType === AnswerType.SELECT_MULTIPLE) {
+      multipleAnswer = props.resultProps.givenAnswer.split(',').map((answer) => parseInt(answer));
+      correctMultipleAnswer = props.resultProps.correctAnswer.split(',').map((answer) => parseInt(answer));
+    } else if (props.answerType === AnswerType.FILL_THE_BLANK) {
+      fillTheBlankAnswer = props.resultProps.givenAnswer;
+      correctFillTheBlankAnswer = props.resultProps.correctAnswer;
+    }
+  }
+  console.log('props', props)
   useEffect(() => {
     if (props.mediaType == MediaType.TEXT) {
       fetch(props.filepath!!).then(response => response.text()).then(text => setTextBlockContent(text))
     }
-  }, [])
+  })
   if (props.mediaType === MediaType.AUDIO) {
     mediablock = (
       <audio controls>
@@ -209,7 +245,9 @@ function QuestionComponent(props: QuestionProps) {
     );
   } else if (props.mediaType == MediaType.TEXT) {
     mediablock = (
-      <pre>{textBlockContent}</pre>
+      <pre style={{whiteSpace: "pre-wrap"}}>
+        {textBlockContent}
+      </pre>
     )
   }
   if (props.answerType === AnswerType.SELECT_ONE) {
@@ -234,6 +272,8 @@ function QuestionComponent(props: QuestionProps) {
               value={index}
               control={<Radio />}
               label={answerOption}
+              sx={{ backgroundColor: correctSingleAnswer === index ? "lightgreen" : "none" }}
+              disabled={props.resultProps !== null}
             />
           )
         }
@@ -253,7 +293,12 @@ function QuestionComponent(props: QuestionProps) {
             (answerOption: string, index: number) => <FormControlLabel
               key={index}
               value={index.toString()}
+              sx={{
+                backgroundColor: correctMultipleAnswer.includes(index) ? "lightgreen" : "none",
+                marginBottom: "10px",
+              }}
               control={<Checkbox
+                disabled={props.resultProps !== null}
                 checked={multipleAnswer.includes(index)}
                 onChange={() => {
                   if (multipleAnswer.includes(index)) {
@@ -276,23 +321,38 @@ function QuestionComponent(props: QuestionProps) {
     const blankIndex = props.title.indexOf('<пропуск>');
     const titleParts = [
       props.title.slice(0, blankIndex),
-      props.title.slice(blankIndex + 3),
+      props.title.slice(blankIndex + '<пропуск>'.length),
     ];
+    const givenAnswerField: JSX.Element = (
+      <input
+        type="text"
+        size={Math.max(fillTheBlankAnswer.length - 5, 1)}
+        value={fillTheBlankAnswer}
+        onChange={(event) => { setFillTheBlankAnswer(event.target.value) }}
+        disabled={props.resultProps !== null}
+        style={{ backgroundColor: props.resultProps === null ? "none" : fillTheBlankAnswer === correctFillTheBlankAnswer ? "lightgreen" : "pink" }}
+      />
+    );
+    const correctAnswerField: JSX.Element = (
+      <input
+        type="text"
+        size={Math.max(correctFillTheBlankAnswer.length - 5, 1)}
+        value={correctFillTheBlankAnswer}
+        disabled={true}
+        style={{ backgroundColor: "lightgreen" }}
+      />
+    );
     titleBlock = <Box>
       <p>
         {titleParts[0]}
-        <input
-          type="text"
-          size={Math.max(fillTheBlankAnswer.length, 1)}
-          value={fillTheBlankAnswer}
-          onChange={(event) => { setFillTheBlankAnswer(event.target.value) }}
-        />
+        {givenAnswerField}
+        {props.resultProps !== null && props.resultProps.givenAnswer !== props.resultProps.correctAnswer && correctAnswerField}
         {titleParts[1]}
       </p>
       {mediablock}
     </Box>
   }
-  const inProgressNavigation: JSX.Element = (
+  const inProgressNavigation: JSX.Element | null = (props.inProgressProps &&
     <Button
       disabled={stringifiedAnswer === null}
       variant="contained"
@@ -308,7 +368,7 @@ function QuestionComponent(props: QuestionProps) {
       Дальше
     </Button>
   );
-  const resultsNavigation: JSX.Element = (
+  const resultsNavigation: JSX.Element | null = (props.resultProps &&
     <Box>
       <Button
         disabled={!props.resultProps!!.previousStepAllowed}
@@ -337,8 +397,8 @@ function QuestionComponent(props: QuestionProps) {
     >
       {titleBlock}
       {answersBlock}
-      {props.inProgressProps && inProgressNavigation}
-      {props.resultProps && resultsNavigation}
+      {inProgressNavigation}
+      {resultsNavigation}
     </Box>
     // </Box>
   );
@@ -355,59 +415,61 @@ function StartPage(props: StartPageProps) {
   const [email, setEmail] = useState<string>('');
   const [startLevelName, setStartLevelSerialized] = useState<string>('');
   return (
-    <Box display="flex" flexDirection="column" alignItems="center">
-      <Box
+    <Box
+    // display="flex" flexDirection="column" alignItems="center"
+    >
+      {/* <Box
         // sx={{ backgroundColor: "lightgreen" }}
         width={{ mobile: "95%", desktop: "30%" }}
         display="inline-block"
+      > */}
+      <FormGroup>
+        <TextField
+          label="Ваше полное имя"
+          variant="filled"
+          required={true}
+          sx={{ marginBottom: "20px" }}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+        <TextField
+          label="Ваш email"
+          variant="filled"
+          required={true}
+          sx={{ marginBottom: "20px" }}
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+        />
+      </FormGroup>
+      <FormLabel id="level-selection-label" required={true}>Ваш текущий уровень</FormLabel>
+      <RadioGroup
+        aria-labelledby='level-selection-label'
+        value={startLevelName}
+        onChange={(event) => setStartLevelSerialized(event.target.value)}
       >
-        <FormGroup>
-          <TextField
-            label="Ваше полное имя"
-            variant="filled"
-            required={true}
-            sx={{ marginBottom: "20px" }}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-          <TextField
-            label="Ваш email"
-            variant="filled"
-            required={true}
-            sx={{ marginBottom: "20px" }}
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-        </FormGroup>
-        <FormLabel id="level-selection-label" required={true}>Ваш текущий уровень</FormLabel>
-        <RadioGroup
-          aria-labelledby='level-selection-label'
-          value={startLevelName}
-          onChange={(event) => setStartLevelSerialized(event.target.value)}
-        >
-          {
-            Object.entries(LanguageLevel).map(
-              ([key, value]) => {
-                if (typeof key === 'string' && typeof value == 'string') return null;
-                return <FormControlLabel
-                  key={key}
-                  value={key}
-                  control={<Radio />}
-                  label={value === 0 ? 'Не знаю' : key.replaceAll('_', '.')}
-                />
-              }
-            )
-          }
-        </RadioGroup>
-        <Button
-          variant="contained"
-          sx={{ float: "right" }}
-          disabled={startLevelName === '' || name === '' || email === ''}
-          onClick={() => props.startCallback(name, email, startLevelName)}
-        >
-          Начать тест
-        </Button>
-      </Box>
+        {
+          Object.entries(LanguageLevel).map(
+            ([key, value]) => {
+              if (typeof key === 'string' && typeof value == 'string') return null;
+              return <FormControlLabel
+                key={key}
+                value={key}
+                control={<Radio />}
+                label={value === 0 ? 'Не знаю' : key.replaceAll('_', '.')}
+              />
+            }
+          )
+        }
+      </RadioGroup>
+      <Button
+        variant="contained"
+        sx={{ float: "right" }}
+        disabled={startLevelName === '' || name === '' || email === ''}
+        onClick={() => props.startCallback(name, email, startLevelName)}
+      >
+        Начать тест
+      </Button>
+      {/* </Box> */}
     </Box>
   );
 }
@@ -425,12 +487,13 @@ function MainPage() {
         return;
       } else if (data.status === 'IN_PROGRESS') {
         const questionData = data.question;
+        // console.log('aaaa', questionData.media_type as keyof typeof MediaType)
         setCurrentQuestion({
           title: questionData.question_title,
           answerType: questionData.answer_type as AnswerType,
           serializedAnswerOptions: questionData.answer_options,
-          filepath: questionData.filepath,
-          mediaType: MediaType[questionData.media_type as keyof typeof MediaType],
+          filepath: SERVER_ADDRESS + '/media/' + questionData.filepath,
+          mediaType: questionData.media_type as MediaType,
           inProgressProps: { nextStepCallback: nextStepCallback },
           resultProps: null,
         })
@@ -463,8 +526,8 @@ function MainPage() {
         title: data.question_title,
         answerType: data.answer_type as AnswerType,
         serializedAnswerOptions: data.answer_options,
-        filepath: data.filepath,
-        mediaType: MediaType[data.media_type as keyof typeof MediaType],
+        filepath: SERVER_ADDRESS + '/media/' + data.filepath,
+        mediaType: data.media_type as MediaType,
         inProgressProps: { nextStepCallback: nextStepCallback },
         resultProps: null,
       })
@@ -509,7 +572,7 @@ function MainPage() {
           answerType: data.answer_type as AnswerType,
           serializedAnswerOptions: data.answer_options,
           filepath: SERVER_ADDRESS + '/media/' + data.filepath,
-          mediaType: MediaType[data.media_type as keyof typeof MediaType],
+          mediaType: data.media_type as MediaType,
           inProgressProps: { nextStepCallback: nextStepCallback },
           resultProps: null,
         })
@@ -522,8 +585,14 @@ function MainPage() {
   }
   return (
     <Box>
-      {/* <QuestionComponent {...TEST_QUESTION_TEXT} /> */}
-      {currentQuestion === null ? <StartPage startCallback={doStart} /> : questionComponent}
+      <Box display="flex" flexDirection="column" alignItems="center">
+        <Box
+          width={{ mobile: "100%", desktop: "40%" }}
+          display="inline-block"
+        >
+          {currentQuestion === null ? <StartPage startCallback={doStart} /> : questionComponent}
+        </Box>
+      </Box>
     </Box>
   );
 }
@@ -630,14 +699,40 @@ function SummarizedResultsPage() {
 
 
 interface DetailedResultsData {
+  questionsData: QuestionProps[];
 }
 
 
 function DetailedResultsPage() {
-  console.log('aaaa', window.location)
   const navigate = useNavigate();
   const { userUUID } = useParams();
   const [detailedResults, setDetailedResults] = useState<DetailedResultsData | null>(null);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
+  useEffect(() => {
+    fetch(SERVER_ADDRESS + '/results/' + userUUID + '/detailed').then((response) => response.json()).then((data) => {
+      console.log(data);
+      setDetailedResults({
+        questionsData: data.map((questionData: any, index: number) => {
+          return {
+            title: questionData.question_title,
+            answerType: questionData.answer_type as AnswerType,
+            serializedAnswerOptions: questionData.answer_options,
+            filepath: questionData.filepath === null ? null : SERVER_ADDRESS + '/media/' + questionData.filepath,
+            mediaType: questionData.media_type as MediaType,
+            inProgressProps: null,
+            resultProps: {
+              correctAnswer: questionData.correct_answer,
+              givenAnswer: questionData.given_answer,
+              nextStepAllowed: index !== data.length - 1,
+              previousStepAllowed: index !== 0,
+              nextStepCallback: () => { setCurrentQuestionIndex(index + 1) },
+              previousStepCallback: () => { setCurrentQuestionIndex(index - 1) },
+            },
+          }
+        })
+      })
+    })
+  }, []);
   const resultsBlock: JSX.Element = (
     <Box display="flex" flexDirection="column" alignItems="center">
       <Box
@@ -661,7 +756,7 @@ function DetailedResultsPage() {
             </Button>
           </Box>
         </Box>
-        <QuestionComponent {...TEST_QUESTION_RESULT} />
+        {detailedResults !== null && <QuestionComponent {...detailedResults?.questionsData[currentQuestionIndex]} />}
       </Box>
     </Box>
   );

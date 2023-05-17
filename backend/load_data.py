@@ -54,7 +54,9 @@ def process_topic_file(level: LanguageLevel, category: QuestionCategory, topic_f
                 all_answers = correct_answers_values + other_answers
                 random.shuffle(all_answers)
                 answer_options = json.dumps(all_answers)
-                correct_answer = ','.join([str(all_answers.index(value)) for value in correct_answers_values])
+                correct_answer_indices = [all_answers.index(value) for value in correct_answers_values]
+                correct_answer_indices.sort()
+                correct_answer = ','.join([str(index) for index in correct_answer_indices])
             elif answer_type == AnswerType.FILL_THE_BLANK:
                 answer_options = None
                 correct_answer = row_values[1]

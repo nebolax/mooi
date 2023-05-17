@@ -83,7 +83,7 @@ class LanguageLevel(enum.Enum):
 
 
 MIN_LANGUAGE_LEVEL = LanguageLevel.A1_1
-MAX_LANGUAGE_LEVEL = LanguageLevel.B2_2
+MAX_LANGUAGE_LEVEL = LanguageLevel.A2_1
 
 
 class AnswerType(enum.Enum):
@@ -280,12 +280,12 @@ def process_stats(stats: list[PassedLevelStats]) -> tuple[Optional[LanguageLevel
         if stats[-1].level == MAX_LANGUAGE_LEVEL:
             finished_with_level = MAX_LANGUAGE_LEVEL
         else:
-            next_level = LanguageLevel(stats[0].level + 1)
+            next_level = LanguageLevel(stats[-1].level + 1)
     else:
         if stats[-1].level == MIN_LANGUAGE_LEVEL:
             finished_with_level = LanguageLevel.A_0
         else:
-            next_level = stats[0].level - 1
+            next_level = stats[-1].level - 1
 
     assert (finished_with_level is None and next_level is not None) or \
               (finished_with_level is not None and next_level is None), 'Exactly one of the values must be set'
@@ -347,6 +347,7 @@ def next_step():
                 level=next_level,
             )
 
+    # breakpoint()
     current_step_number += 1
     flask_session['current_step_number'] = current_step_number
     # Get new question
@@ -437,12 +438,19 @@ class PassedStep(NamedTuple):
     given_answer: str
 
     def to_json(self) -> dict[str, Any]:
+        media_type = 'none'
+        if self.filepath is not None:
+            if self.filepath.endswith('.txt'):
+                media_type = 'text'
+            elif self.filepath.endswith('.mp3'):
+                media_type = 'audio'
         return {
             'question_title': self.question_title,
             'language_level': self.language_level.value,
             'answer_type': self.answer_type.value,
             'answer_options': self.answer_options,
             'correct_answer': self.correct_answer,
+            'media_type': media_type,
             'filepath': self.filepath,
             'given_answer': self.given_answer,
             'correct_answer': self.correct_answer,
@@ -536,6 +544,7 @@ def status():
     if 'current_step_number' not in flask_session:
         return jsonify({'status': 'NOT_STARTED'})
 
+    breakpoint()
     current_step_number = flask_session['current_step_number']
     next_question = db_session.query(Question).join(ProgressStep).filter(
         ProgressStep.user_id == user_id,
@@ -546,7 +555,7 @@ def status():
 
 @api_blueprint.route('/media/<path:path>', methods=['GET'])
 def send_file(path):
-    return send_from_directory('files', path)
+    return send_from_directory('media', path)
 
 
 def create_app(db_name = 'mooi_develop_db'):
