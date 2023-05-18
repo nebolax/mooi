@@ -37,6 +37,7 @@ time_ranges = [
     ("09:54", "11:04"),
     ("10:26", "11:22"),  # Доделал summarized статистику на фронте и начал размечать detailed статистику
     ("09:22", "11:01"),  # Доделал detailed статистику
+    ("08:09", "08:20")
 ]
 total_time = calculate_total_time(time_ranges)
 print(total_time)

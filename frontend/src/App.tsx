@@ -25,16 +25,16 @@ enum MediaType {
 }
 
 enum LanguageLevel {
-  A_0 = 0,
-  A1_1 = 1,
-  A1_2 = 2,
-  A2_1 = 3,
-  A2_2 = 4,
-  B1_1 = 5,
-  B1_2 = 6,
-  B1_3 = 7,
-  B2_1 = 8,
-  B2_2 = 9,
+  A_0 = 1,
+  A1_1 = 2,
+  A1_2 = 3,
+  A2_1 = 4,
+  A2_2 = 5,
+  B1_1 = 6,
+  B1_2 = 7,
+  B1_3 = 8,
+  B2_1 = 9,
+  B2_2 = 10,
 }
 
 enum QuestionCategory {
@@ -455,7 +455,7 @@ function StartPage(props: StartPageProps) {
                 key={key}
                 value={key}
                 control={<Radio />}
-                label={value === 0 ? 'Не знаю' : key.replaceAll('_', '.')}
+                label={value === LanguageLevel.A_0 ? 'Не знаю' : key.replaceAll('_', '.')}
               />
             }
           )
@@ -643,6 +643,12 @@ function SummarizedResultsPage() {
   } else {
     recommendedLevelStr = 'Рекомендуем вам пойти в группу ' + getLanguageLevelName(summarizedResults.detectedLevel + 1);
   }
+  let yourLevelBlock: JSX.Element;
+  if (summarizedResults.detectedLevel === LanguageLevel.A_0) {
+    yourLevelBlock = <h3>Вы пока что совсем не знаете голландский</h3>
+  } else {
+    yourLevelBlock = <h3>Ваш уровень: {getLanguageLevelName(summarizedResults?.detectedLevel)}</h3>
+  }
   const resultsBlock: JSX.Element = (
     <Box display="flex" flexDirection="column" alignItems="center">
       <Box
@@ -666,7 +672,7 @@ function SummarizedResultsPage() {
             </Button>
           </Box>
         </Box>
-        <h3>Ваш уровень: {getLanguageLevelName(summarizedResults?.detectedLevel)}</h3>
+        {yourLevelBlock}
         <h3>{recommendedLevelStr}</h3>
         <h3>Результаты по темам:</h3>
         {/* Table with results */}
