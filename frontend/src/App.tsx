@@ -454,6 +454,7 @@ function StartPage(props: StartPageProps) {
               return <FormControlLabel
                 key={key}
                 value={key}
+                disabled={(value as LanguageLevel) > LanguageLevel.A2_1}
                 control={<Radio />}
                 label={value === LanguageLevel.A_0 ? 'Не знаю' : key.replaceAll('_', '.')}
               />

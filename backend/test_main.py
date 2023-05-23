@@ -1,12 +1,13 @@
 from http import HTTPStatus
-from random import random
-from unittest.mock import patch
-from flask import Flask, Response
+from flask import Response
 from flask.testing import FlaskClient
 import pytest
 import json
+from backend import create_app, reset_db
+from backend.flow_logic import compute_detailed_stats, compute_summarized_stats, generate_progress_steps_batch, get_passed_levels_stats, get_questions_counts
 
-from backend import AnswerType, LanguageLevel, PassedLevelStats, ProgressStep, Question, QuestionCategory, QuestionCountEntry, SummarizedStats, TopicSuccessData, User, compute_detailed_stats, compute_summarized_stats, create_app, db_session, generate_progress_steps_batch, get_passed_levels_stats, get_questions_counts, flask_session
+from backend.models import ProgressStep, Question, User, db_session
+from backend.types import AnswerType, LanguageLevel, PassedLevelStats, QuestionCategory, QuestionCountEntry, SummarizedStats, TopicSuccessData
 
 
 TEST_QUESTIONS_A1_1_ONE_PER_GROUP = [
@@ -194,9 +195,13 @@ TEST_PROGRESS_STEPS_A1_2 = [
 
 @pytest.fixture()
 def client():
+    # breakpoint()
     app = create_app(db_name='mooi_test_db')
     app.testing = True
-    return app.test_client()
+    reset_db(app)
+    client =  app.test_client()
+    yield client
+    reset_db(app)
 
 
 def test_questions_count(client: FlaskClient):
