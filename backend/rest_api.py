@@ -101,7 +101,6 @@ def next_step():
                 level=next_level,
             )
 
-    # breakpoint()
     current_step_number += 1
     flask_session['current_step_number'] = current_step_number
     # Get new question
@@ -170,7 +169,6 @@ def status():
     if 'current_step_number' not in flask_session:
         return jsonify({'status': 'NOT_STARTED'})
 
-    breakpoint()
     current_step_number = flask_session['current_step_number']
     next_question = db_session.query(Question).join(ProgressStep).filter(
         ProgressStep.user_id == user_id,

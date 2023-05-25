@@ -1,16 +1,21 @@
+from copy import deepcopy
 from http import HTTPStatus
+import importlib
 from flask import Response
 from flask.testing import FlaskClient
 import pytest
 import json
-from backend import create_app, reset_db
+
+from sqlalchemy import MetaData, inspect
+from backend import create_basic_app, initialize_app_modules
+from backend import models, db
 from backend.flow_logic import compute_detailed_stats, compute_summarized_stats, generate_progress_steps_batch, get_passed_levels_stats, get_questions_counts
 
 from backend.models import ProgressStep, Question, User, db_session
 from backend.types import AnswerType, LanguageLevel, PassedLevelStats, QuestionCategory, QuestionCountEntry, SummarizedStats, TopicSuccessData
 
 
-TEST_QUESTIONS_A1_1_ONE_PER_GROUP = [
+make_test_questions_a1_1_one_per_group = lambda: [
     Question(
         id=1,
         level=LanguageLevel.A1_1,
@@ -54,9 +59,9 @@ TEST_QUESTIONS_A1_1_ONE_PER_GROUP = [
     ),
 ]
 
-TEST_QUESTIONS_A1_1_ONE_PER_GROUP_JSON = [question.to_json() for question in TEST_QUESTIONS_A1_1_ONE_PER_GROUP]
+TEST_QUESTIONS_A1_1_ONE_PER_GROUP_JSON = [question.to_json() for question in make_test_questions_a1_1_one_per_group()]
 
-TEST_QUESTIONS_A1_1_MANY_IN_GROUP = [
+make_test_questions_a1_1_many_in_group = lambda: [
     Question(
         id=2,
         level=LanguageLevel.A1_1,
@@ -80,7 +85,7 @@ TEST_QUESTIONS_A1_1_MANY_IN_GROUP = [
     ),
 ]
 
-TEST_QUESTIONS_A1_2_ONE_PER_GROUP = [
+make_test_questions_a1_2_one_per_group = lambda: [
     Question(
         id=7,
         level=LanguageLevel.A1_2,
@@ -114,9 +119,9 @@ TEST_QUESTIONS_A1_2_ONE_PER_GROUP = [
     ), 
 ]
 
-TEST_QUESTIONS_A1_2_ONE_PER_GROUP_JSON = [question.to_json() for question in TEST_QUESTIONS_A1_2_ONE_PER_GROUP]
+TEST_QUESTIONS_A1_2_ONE_PER_GROUP_JSON = [question.to_json() for question in make_test_questions_a1_2_one_per_group()]
 
-TEST_QUESTION_COUNTS = [
+make_test_question_counts = lambda: [
     QuestionCountEntry(
         category=QuestionCategory.GRAMMAR,
         answer_type=AnswerType.SELECT_ONE,
@@ -140,7 +145,7 @@ TEST_QUESTION_COUNTS = [
     ),
 ]
 
-TEST_USERS = [
+make_test_users = lambda: [
     User(
         id=10,
         email='some-email@example.com',
@@ -149,7 +154,7 @@ TEST_USERS = [
     ),
 ]
 
-TEST_PROGRESS_STEPS_A1_1 = [
+make_test_progress_steps_a1_1 = lambda: [
     ProgressStep(
         user_id=10,
         step_number=0,
@@ -173,7 +178,7 @@ TEST_PROGRESS_STEPS_A1_1 = [
     ),
 ]
 
-TEST_PROGRESS_STEPS_A1_2 = [
+make_test_progress_steps_a1_2 = lambda: [
     ProgressStep(
         user_id=10,
         step_number=4,
@@ -195,30 +200,37 @@ TEST_PROGRESS_STEPS_A1_2 = [
 
 @pytest.fixture()
 def client():
-    # breakpoint()
-    app = create_app(db_name='mooi_test_db')
+    app = create_basic_app(db_name='mooi_test_db')
+    with app.app_context():
+        db.reflect()
+        db.drop_all()
+        # Have to clear metadata due to how `flask_session` works. When `Session` is initialized (which happens
+        # in every call to `initialize_app_modules`), it creates a new Sessions table. And in order to not have
+        # this table duplicated in metadata, we clear the metadata.
+        if 'sessions' in db.metadata.tables:
+            db.metadata._remove_table('sessions', db.metadata.schema)
+        db.create_all()
+    initialize_app_modules(app=app)
     app.testing = True
-    reset_db(app)
-    client =  app.test_client()
+    client = app.test_client()
     yield client
-    reset_db(app)
 
 
 def test_questions_count(client: FlaskClient):
     with client.application.app_context():
-        db_session.add_all(TEST_QUESTIONS_A1_1_ONE_PER_GROUP)
-        db_session.add_all(TEST_QUESTIONS_A1_1_MANY_IN_GROUP)
+        db_session.add_all(make_test_questions_a1_1_one_per_group())
+        db_session.add_all(make_test_questions_a1_1_many_in_group())
         counts = get_questions_counts(level=LanguageLevel.A1_1)
-    assert counts == TEST_QUESTION_COUNTS
+    assert counts == make_test_question_counts()
 
 
 def test_generate_progress_steps_batch(client: FlaskClient):
     with client.application.test_request_context():
-        db_session.add_all(TEST_QUESTIONS_A1_1_ONE_PER_GROUP)
-        db_session.add_all(TEST_QUESTIONS_A1_1_MANY_IN_GROUP)
-        db_session.add_all(TEST_USERS)
+        db_session.add_all(make_test_questions_a1_1_one_per_group())
+        db_session.add_all(make_test_questions_a1_1_many_in_group())
+        db_session.add_all(make_test_users())
         generate_progress_steps_batch(
-            question_counts=TEST_QUESTION_COUNTS,
+            question_counts=make_test_question_counts(),
             level=LanguageLevel.A1_1,
             user_id=10,
             current_step_number=4,
@@ -232,7 +244,7 @@ def test_generate_progress_steps_batch(client: FlaskClient):
         ).join(Question).order_by(ProgressStep.step_number).all()
 
     expected_progress_steps = []
-    for step_number, counts_entry in enumerate(TEST_QUESTION_COUNTS, start=5):
+    for step_number, counts_entry in enumerate(make_test_question_counts(), start=5):
         expected_progress_steps.append((
             10,
             step_number,
@@ -245,11 +257,11 @@ def test_generate_progress_steps_batch(client: FlaskClient):
 
 def test_get_passed_levels_stats(client: FlaskClient):
     with client.application.app_context():
-        db_session.add_all(TEST_QUESTIONS_A1_1_ONE_PER_GROUP)
-        db_session.add_all(TEST_QUESTIONS_A1_2_ONE_PER_GROUP)
-        db_session.add_all(TEST_PROGRESS_STEPS_A1_1)
-        db_session.add_all(TEST_PROGRESS_STEPS_A1_2)
-        db_session.add_all(TEST_USERS)
+        db_session.add_all(make_test_questions_a1_1_one_per_group())
+        db_session.add_all(make_test_questions_a1_2_one_per_group())
+        db_session.add_all(make_test_progress_steps_a1_1())
+        db_session.add_all(make_test_progress_steps_a1_2())
+        db_session.add_all(make_test_users())
         stats = get_passed_levels_stats(user_id=10)
 
     expected_stats = [
@@ -266,11 +278,11 @@ def test_get_passed_levels_stats(client: FlaskClient):
 
 def test_compute_summarized_stats(client: FlaskClient):
     with client.application.app_context():
-        db_session.add_all(TEST_QUESTIONS_A1_1_ONE_PER_GROUP)
-        db_session.add_all(TEST_QUESTIONS_A1_2_ONE_PER_GROUP)
-        db_session.add_all(TEST_USERS)
-        db_session.add_all(TEST_PROGRESS_STEPS_A1_1)
-        db_session.add_all(TEST_PROGRESS_STEPS_A1_2)
+        db_session.add_all(make_test_questions_a1_1_one_per_group())
+        db_session.add_all(make_test_questions_a1_2_one_per_group())
+        db_session.add_all(make_test_users())
+        db_session.add_all(make_test_progress_steps_a1_1())
+        db_session.add_all(make_test_progress_steps_a1_2())
         stats = compute_summarized_stats(user_id=10)
 
     expected_stats = SummarizedStats(
@@ -311,14 +323,14 @@ def test_compute_summarized_stats(client: FlaskClient):
 
 def test_compute_detailed_stats(client: FlaskClient):
     with client.application.app_context():
-        db_session.add_all(TEST_QUESTIONS_A1_1_ONE_PER_GROUP)
-        db_session.add_all(TEST_QUESTIONS_A1_2_ONE_PER_GROUP)
-        db_session.add_all(TEST_USERS)
-        db_session.add_all(TEST_PROGRESS_STEPS_A1_1)
-        db_session.add_all(TEST_PROGRESS_STEPS_A1_2)
+        db_session.add_all(make_test_questions_a1_1_one_per_group())
+        db_session.add_all(make_test_questions_a1_2_one_per_group())
+        db_session.add_all(make_test_users())
+        db_session.add_all(make_test_progress_steps_a1_1())
+        db_session.add_all(make_test_progress_steps_a1_2())
         passed_steps = compute_detailed_stats(user_id=10)
 
-    assert len(passed_steps) == len(TEST_PROGRESS_STEPS_A1_1) + len(TEST_PROGRESS_STEPS_A1_2)
+    assert len(passed_steps) == len(make_test_progress_steps_a1_1()) + len(make_test_progress_steps_a1_2())
 
 
 def test_index(client: FlaskClient):
@@ -330,9 +342,11 @@ def test_index(client: FlaskClient):
 
 def test_pass_the_test(client: FlaskClient):
     """Tests the flow of passing a language test"""
+    test_questions_a1_1_one_per_group = make_test_questions_a1_1_one_per_group()
+    test_questions_a1_2_one_per_group = make_test_questions_a1_2_one_per_group()
     with client.application.app_context():
-        db_session.add_all(TEST_QUESTIONS_A1_1_ONE_PER_GROUP)
-        db_session.add_all(TEST_QUESTIONS_A1_2_ONE_PER_GROUP)
+        db_session.add_all(test_questions_a1_1_one_per_group)
+        db_session.add_all(test_questions_a1_2_one_per_group)
         db_session.commit()
     # Create a new user
     response = client.post(
@@ -353,10 +367,10 @@ def test_pass_the_test(client: FlaskClient):
         assert response.json == TEST_QUESTIONS_A1_1_ONE_PER_GROUP_JSON[0]
     with client.session_transaction() as session:
         assert session['current_step_number'] == 1
-        assert session['next_level_step_number'] == len(TEST_QUESTIONS_A1_1_ONE_PER_GROUP)
+        assert session['next_level_step_number'] == len(test_questions_a1_1_one_per_group)
 
     response = client.post('/api/next-step', json={})
-    assert response.text == 'Answer can be missing only for the first question'
+    assert response.json == {'error': 'Answer can be missing only for the first question'}
     with client.session_transaction() as session:  # Session data should have not changed
         assert session['current_step_number'] == 1
 
@@ -369,19 +383,19 @@ def test_pass_the_test(client: FlaskClient):
     assert response.json == TEST_QUESTIONS_A1_1_ONE_PER_GROUP_JSON[2]
     with client.session_transaction() as session:
         assert session['current_step_number'] == 3
-        assert session['next_level_step_number'] == len(TEST_QUESTIONS_A1_1_ONE_PER_GROUP)  # Should still be the same
+        assert session['next_level_step_number'] == len(test_questions_a1_1_one_per_group)  # Should still be the same
     
     response = client.post('/api/next-step', json={'answer': '0'})
     assert response.json == TEST_QUESTIONS_A1_1_ONE_PER_GROUP_JSON[3]
     with client.session_transaction() as session:
         assert session['current_step_number'] == 4
-        assert session['next_level_step_number'] == len(TEST_QUESTIONS_A1_1_ONE_PER_GROUP)  # Should still be the same
+        assert session['next_level_step_number'] == len(test_questions_a1_1_one_per_group)  # Should still be the same
 
     response = client.post('/api/next-step', json={'answer': 'xyz'})
     assert response.json == TEST_QUESTIONS_A1_2_ONE_PER_GROUP_JSON[0]
     with client.session_transaction() as session:
         assert session['current_step_number'] == 5
-        assert session['next_level_step_number'] == len(TEST_QUESTIONS_A1_1_ONE_PER_GROUP) + len(TEST_QUESTIONS_A1_2_ONE_PER_GROUP)
+        assert session['next_level_step_number'] == len(test_questions_a1_1_one_per_group) + len(test_questions_a1_2_one_per_group)
 
     response = client.post('/api/next-step', json={'answer': 'xyz'})
     assert response.json == TEST_QUESTIONS_A1_2_ONE_PER_GROUP_JSON[1]
@@ -394,9 +408,11 @@ def test_pass_the_test(client: FlaskClient):
         assert session['current_step_number'] == 7
 
     response = client.post('/api/next-step', json={'answer': 'awesome'})
-    assert response.status_code == HTTPStatus.SEE_OTHER
+    assert response.status_code == HTTPStatus.OK
+    assert response.json['finished'] == True
+    assert 'user_uuid' in response.json
 
     # Check that the progress steps were generated correctly
     with client.application.app_context():
         progress_steps_count = db_session.query(ProgressStep).count()
-        assert progress_steps_count == len(TEST_QUESTIONS_A1_1_ONE_PER_GROUP) + len(TEST_QUESTIONS_A1_2_ONE_PER_GROUP)
+        assert progress_steps_count == len(test_questions_a1_1_one_per_group) + len(test_questions_a1_2_one_per_group)

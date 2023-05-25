@@ -2,6 +2,7 @@
 import datetime
 from typing import Any, Optional
 import uuid
+from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import scoped_session
 from flask_sqlalchemy.session import Session as SqlAlchemySession
@@ -17,6 +18,12 @@ dbModel: Any = db.Model  # doing this to avoid db.Model not defined error
 db_session: scoped_session[SqlAlchemySession] = db.session
 IntegerPrimaryKey = Annotated[int, mapped_column(primary_key=True)]
 
+
+def hard_reset_db(app: Flask):
+    with app.app_context():
+        metadata = db.MetaData()
+        metadata.reflect(bind=db.engine)
+        metadata.drop_all(bind=db.engine)
 
 
 class Question(dbModel):
