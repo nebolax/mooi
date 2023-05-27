@@ -38,6 +38,7 @@ def initialize_app_modules(app: Flask):
     CORS(app, supports_credentials=True)
     app.secret_key = os.environ["SECRET_KEY"]
     app.config['SESSION_PERMANENT'] = True
+    app.config['SESSION_COOKIE_HTTPONLY'] = False
     with app.app_context():
         Session(app)
         if inspect(db.engine).has_table('sessions') is False:

@@ -1,13 +1,19 @@
-import { Backdrop, Box, Button, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material";
+import { Backdrop, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { LanguageLevel, QuestionCategory, QuestionCategoryRu, SERVER_ADDRESS, SummarizedResultsData, getLanguageLevelName } from "./types";
 import { apiFetchSummarizedResults } from "./api";
+import Cookies from 'js-cookie';
 
 export default function SummarizedResultsPage() {
     const navigate = useNavigate();
     const { userUUID } = useParams();
     const [summarizedResults, setSummarizedResults] = useState<SummarizedResultsData | null>(null);
+    const [startOverDialogOpen, setStartOverDialogOpen] = useState<boolean>(false);
+    const startOver = () => {
+      Cookies.remove('session');
+      navigate('/');
+    }
     useEffect(() => {
       apiFetchSummarizedResults(userUUID!!).then((results) => setSummarizedResults(results));
     }, []);
@@ -32,6 +38,17 @@ export default function SummarizedResultsPage() {
     }
     const resultsBlock: JSX.Element = (
       <Box display="flex" flexDirection="column" alignItems="center">
+        <Dialog open={startOverDialogOpen}>
+          <DialogTitle>Внимание</DialogTitle>
+          <DialogContent sx={{maxWidth: "500px"}}>
+            <p>Cохраните данную ссылку если вы не хотите потерять доступ к текущим результатам</p>
+            <a href={window.location.href}>{window.location.href}</a>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setStartOverDialogOpen(false)}>Отмена</Button>
+            <Button onClick={() => startOver()}>Продолжить</Button>
+          </DialogActions>
+        </Dialog>
         <Box
           // sx={{ backgroundColor: "lightgreen" }}
           width={{ mobile: "95%", desktop: "50%" }}
@@ -46,10 +63,17 @@ export default function SummarizedResultsPage() {
             <Box sx={{ display: "flex", justifyContent: "center", flexDirection: "column" }}>
               <Button
                 variant="contained"
-                sx={{ height: "40px" }}
+                sx={{ height: "40px", marginBottom: "10px", fontSize: {desktop: "0.9em", mobile: "0.7em"} }}
                 onClick={() => { navigate('/results/' + userUUID + '/detailed') }}
               >
                 Подробнее
+              </Button>
+              <Button
+                variant="contained"
+                sx={{ height: "40px", fontSize: {desktop: "0.9em", mobile: "0.7em"} }}
+                onClick={() => setStartOverDialogOpen(true)}
+              >
+                Пройти еще раз
               </Button>
             </Box>
           </Box>

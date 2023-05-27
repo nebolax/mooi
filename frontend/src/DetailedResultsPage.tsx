@@ -36,7 +36,7 @@ export default function DetailedResultsPage() {
                             sx={{ height: "40px" }}
                             onClick={() => { navigate('/results/' + userUUID) }}
                         >
-                            По темам
+                            Назад
                         </Button>
                     </Box>
                 </Box>
