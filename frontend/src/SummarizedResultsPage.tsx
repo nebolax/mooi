@@ -1,4 +1,4 @@
-import { Backdrop, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material";
+import { Backdrop, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Link, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, useTheme } from "@mui/material";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { LanguageLevel, QuestionCategory, QuestionCategoryRu, SERVER_ADDRESS, SummarizedResultsData, getLanguageLevelName } from "./types";
@@ -7,6 +7,7 @@ import Cookies from 'js-cookie';
 
 export default function SummarizedResultsPage() {
     const navigate = useNavigate();
+    const theme = useTheme();
     const { userUUID } = useParams();
     const [summarizedResults, setSummarizedResults] = useState<SummarizedResultsData | null>(null);
     const [startOverDialogOpen, setStartOverDialogOpen] = useState<boolean>(false);
@@ -24,24 +25,24 @@ export default function SummarizedResultsPage() {
     );
     if (summarizedResults === null) return loadingBlock;
   
-    let recommendedLevelStr: string;
+    let recommendedLevelBlock: JSX.Element;
     if (summarizedResults.detectedLevel === LanguageLevel.B2_2) {
-      recommendedLevelStr = 'Поздравляем! Вы отлично знаете голландский'
+      recommendedLevelBlock = <p>Поздравляем! Вы отлично знаете голландский</p>
     } else {
-      recommendedLevelStr = 'Рекомендуем вам пойти в группу ' + getLanguageLevelName(summarizedResults.detectedLevel + 1);
+      recommendedLevelBlock = <p>Рекомендуем вам записаться в группу <strong>{getLanguageLevelName(summarizedResults.detectedLevel + 1)}</strong></p>
     }
     let yourLevelBlock: JSX.Element;
     if (summarizedResults.detectedLevel === LanguageLevel.A_0) {
-      yourLevelBlock = <h3>Вы пока что совсем не знаете голландский</h3>
+      yourLevelBlock = <p>Вы пока что совсем не знаете голландский</p>
     } else {
-      yourLevelBlock = <h3>Ваш уровень: {getLanguageLevelName(summarizedResults?.detectedLevel)}</h3>
+      yourLevelBlock = <p>Ваш ориентировочный уровень: <strong>{getLanguageLevelName(summarizedResults?.detectedLevel)}</strong></p>
     }
     const resultsBlock: JSX.Element = (
       <Box display="flex" flexDirection="column" alignItems="center">
         <Dialog open={startOverDialogOpen}>
           <DialogTitle>Внимание</DialogTitle>
           <DialogContent sx={{maxWidth: "500px"}}>
-            <p>Cохраните данную ссылку если вы не хотите потерять доступ к текущим результатам</p>
+            <p>Сохраните ссылку если вы не хотите потерять доступ к текущим результатам</p>
             <a href={window.location.href}>{window.location.href}</a>
           </DialogContent>
           <DialogActions>
@@ -63,10 +64,10 @@ export default function SummarizedResultsPage() {
             <Box sx={{ display: "flex", justifyContent: "center", flexDirection: "column" }}>
               <Button
                 variant="contained"
-                sx={{ height: "40px", marginBottom: "10px", fontSize: {desktop: "0.9em", mobile: "0.7em"} }}
+                sx={{ height: "40px", marginBottom: "10px", fontSize: {desktop: "0.9em", mobile: "0.6em"} }}
                 onClick={() => { navigate('/results/' + userUUID + '/detailed') }}
               >
-                Подробнее
+                Посмотреть ответы
               </Button>
               <Button
                 variant="contained"
@@ -78,8 +79,10 @@ export default function SummarizedResultsPage() {
             </Box>
           </Box>
           {yourLevelBlock}
-          <h3>{recommendedLevelStr}</h3>
-          <h3>Результаты по темам:</h3>
+          {recommendedLevelBlock}
+          <p>Вы можете ознакомиться с подробным описанием групп на <Link href="http://mooinederlands.ru/groepslessen" target="_blank">нашем сайте</Link></p>
+          <p>Следите за актуальной информацией о школе в <Link href="https://www.instagram.com/mooinederlands/" target="_blank">TODO: вставить инстаграм</Link></p>
+          <h4>Результаты по темам:</h4>
           {/* Table with results */}
           <TableContainer>
             <Table>

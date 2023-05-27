@@ -1,9 +1,10 @@
-import { Box, Button, Checkbox, FormControlLabel, FormGroup, Radio, RadioGroup } from "@mui/material";
+import { Box, Button, Checkbox, FormControlLabel, FormGroup, Radio, RadioGroup, useTheme } from "@mui/material";
 import { useEffect, useState } from "react";
-import { AnswerType, MediaType, QuestionProps, SERVER_ADDRESS } from "./types";
+import { ANSWER_BORDER_RADIUS, AnswerType, BLUE_COLOR, BLUE_COLOR_TRANSPARENT, BURGUNDY_COLOR, BURGUNDY_COLOR_TRANSPARENT, MediaType, QuestionProps, SERVER_ADDRESS } from "./types";
 import { apiFetchText } from "./api";
 
 export default function QuestionComponent(props: QuestionProps) {
+    const theme = useTheme();
     let [singleAnswer, setSingleAnswer] = useState<number | null>(null);
     let [multipleAnswer, setMultipleAnswer] = useState<number[]>([]);
     let [fillTheBlankAnswer, setFillTheBlankAnswer] = useState<string>('');
@@ -58,6 +59,7 @@ export default function QuestionComponent(props: QuestionProps) {
         );
         const answerOptions = JSON.parse(props.serializedAnswerOptions!!);
         stringifiedAnswer = singleAnswer?.toString() ?? null;
+
         answersBlock = (
             <RadioGroup
                 name="controlled-radio-buttons-group"
@@ -71,7 +73,10 @@ export default function QuestionComponent(props: QuestionProps) {
                             value={index}
                             control={<Radio />}
                             label={answerOption}
-                            sx={{ backgroundColor: correctSingleAnswer === index ? "lightgreen" : "none" }}
+                            sx={{
+                                backgroundColor: props.resultProps === null ? "none" : correctSingleAnswer === index ? BLUE_COLOR_TRANSPARENT : singleAnswer === index ? BURGUNDY_COLOR_TRANSPARENT : "none",
+                                borderRadius: ANSWER_BORDER_RADIUS,
+                            }}
                             disabled={props.resultProps !== null}
                         />
                     )
@@ -93,8 +98,9 @@ export default function QuestionComponent(props: QuestionProps) {
                             key={index}
                             value={index.toString()}
                             sx={{
-                                backgroundColor: correctMultipleAnswer.includes(index) ? "lightgreen" : "none",
+                                backgroundColor: props.resultProps === null ? "none" : correctMultipleAnswer.includes(index) ? BLUE_COLOR_TRANSPARENT : multipleAnswer.includes(index) ? BURGUNDY_COLOR_TRANSPARENT : "none",
                                 marginBottom: "10px",
+                                borderRadius: ANSWER_BORDER_RADIUS,
                             }}
                             control={<Checkbox
                                 disabled={props.resultProps !== null}
@@ -129,7 +135,7 @@ export default function QuestionComponent(props: QuestionProps) {
                 value={fillTheBlankAnswer}
                 onChange={(event) => { setFillTheBlankAnswer(event.target.value) }}
                 disabled={props.resultProps !== null}
-                style={{ backgroundColor: props.resultProps === null ? "none" : fillTheBlankAnswer === correctFillTheBlankAnswer ? "lightgreen" : "pink" }}
+                style={{ backgroundColor: props.resultProps === null ? "none" : fillTheBlankAnswer === correctFillTheBlankAnswer ? BLUE_COLOR_TRANSPARENT : BURGUNDY_COLOR_TRANSPARENT }}
             />
         );
         const correctAnswerField: JSX.Element = (
@@ -138,7 +144,7 @@ export default function QuestionComponent(props: QuestionProps) {
                 size={Math.max(correctFillTheBlankAnswer.length - 5, 1)}
                 value={correctFillTheBlankAnswer}
                 disabled={true}
-                style={{ backgroundColor: "lightgreen" }}
+                style={{ backgroundColor: BLUE_COLOR_TRANSPARENT }}
             />
         );
         titleBlock = <Box>

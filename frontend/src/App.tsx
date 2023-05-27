@@ -3,6 +3,7 @@ import { ThemeProvider, createTheme } from '@mui/material';
 import MainPage from './MainPage';
 import SummarizedResultsPage from './SummarizedResultsPage';
 import DetailedResultsPage from './DetailedResultsPage';
+import { BLUE_COLOR, BURGUNDY_COLOR } from './types';
 
 
 declare module '@mui/material/styles' {
@@ -21,17 +22,19 @@ const theme = createTheme(
   {
     palette: {
       primary: {
-        main: '#b03434',
+        main: BURGUNDY_COLOR,
       },
       secondary: {
-        main: '#28b5b0',
+        main: BLUE_COLOR,
       },
     }, breakpoints: {
       values: {
         mobile: 0,
         desktop: 1024,
       },
-    },
+    }, typography: {
+      fontFamily: 'Roboto',
+    }
   }
 );
 

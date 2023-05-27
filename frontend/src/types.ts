@@ -8,6 +8,11 @@ if (process.env.NODE_ENV === 'development') {
 
 export const emailRegexp = /^\S+@\S+\.\S+$/;
 
+export const BURGUNDY_COLOR = '#b03434';
+export const BLUE_COLOR = '#28b5b0';
+export const BURGUNDY_COLOR_TRANSPARENT = '#b0343490';
+export const BLUE_COLOR_TRANSPARENT = '#28b5b090';
+export const ANSWER_BORDER_RADIUS = '6px';
 
 export enum AnswerType {
     SELECT_ONE = 'select_one',
