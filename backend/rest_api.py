@@ -17,8 +17,8 @@ from backend.types import LanguageLevel
 api_blueprint = Blueprint('api', __name__, url_prefix='/api')
 
 class StartSchema(Schema):
-    email = fields.Email(required=True)
-    full_name = fields.String(required=True, validate=lambda s: len(s) > 4)
+    email = fields.String(required=True)
+    full_name = fields.String(required=True)
     start_level = fields.Enum(LanguageLevel, required=True)
 
 

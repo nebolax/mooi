@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import QuestionComponent from "./QuestionComponent";
 import { Box } from "@mui/material";
 import StartPage from "./StartPage";
-import { AnswerType, LanguageLevel, MediaType, QuestionProps, SERVER_ADDRESS } from "./types";
+import { LanguageLevel, QuestionProps } from "./types";
 import { apiFetchStatus, apiNextStep, apiStartTheTest } from "./api";
 
 export default function MainPage() {

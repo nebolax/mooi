@@ -1,6 +1,6 @@
 import { Box, Button, FormControlLabel, FormGroup, FormLabel, Radio, RadioGroup, TextField } from "@mui/material";
 import { useState } from "react";
-import { LanguageLevel, StartPageProps } from "./types";
+import { LanguageLevel, StartPageProps, emailRegexp as EMAIL_REGEXP } from "./types";
 
 
 export default function StartPage(props: StartPageProps) {
@@ -59,7 +59,13 @@ export default function StartPage(props: StartPageProps) {
                 variant="contained"
                 sx={{ float: "right" }}
                 disabled={startLevelName === '' || name === '' || email === ''}
-                onClick={() => props.startCallback(name, email, startLevelName)}
+                onClick={() => {
+                    if (EMAIL_REGEXP.test(email) === false) {
+                        alert('Некорректный email');
+                        return;
+                    }
+                    props.startCallback(name, email, startLevelName)
+                }}
             >
                 Начать тест
             </Button>

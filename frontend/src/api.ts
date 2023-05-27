@@ -17,7 +17,7 @@ export async function apiFetchDetailedResults(userUUID: string, setCurrentQuesti
             title: questionData.question_title,
             answerType: questionData.answer_type as AnswerType,
             serializedAnswerOptions: questionData.answer_options,
-            filepath: questionData.filepath === null ? null : SERVER_ADDRESS + '/media/' + questionData.filepath,
+            filepath: questionData.filepath === null ? null : questionData.filepath,
             mediaType: questionData.media_type as MediaType,
             inProgressProps: null,
             resultProps: {
