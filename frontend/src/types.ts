@@ -6,6 +6,8 @@ if (process.env.NODE_ENV === 'development') {
     SERVER_ADDRESS = window.location.origin + '/api';
 }
 
+export const emailRegexp = /^\S+@\S+\.\S+$/;
+
 
 export enum AnswerType {
     SELECT_ONE = 'select_one',
@@ -98,4 +100,16 @@ export interface DetailedResultsData {
 
 export interface StartPageProps {
     startCallback: (name: string, email: string, startLevelName: string) => void;
+}
+
+export interface StatusResponse {
+    status: 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED';
+    userUUID: string | null;
+    question: QuestionProps | null;
+}
+
+export interface PostAnswerResponse {
+    finished: boolean;
+    userUUID: string | null;
+    question: QuestionProps | null;
 }

@@ -2,26 +2,14 @@ import { Backdrop, Box, Button, CircularProgress, Table, TableBody, TableCell, T
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { LanguageLevel, QuestionCategory, QuestionCategoryRu, SERVER_ADDRESS, SummarizedResultsData, getLanguageLevelName } from "./types";
+import { apiFetchSummarizedResults } from "./api";
 
 export default function SummarizedResultsPage() {
     const navigate = useNavigate();
     const { userUUID } = useParams();
     const [summarizedResults, setSummarizedResults] = useState<SummarizedResultsData | null>(null);
     useEffect(() => {
-      fetch(SERVER_ADDRESS + '/results/' + userUUID + '/summarized').then((response) => response.json()).then((data) => {
-        // console.log(data);
-        setSummarizedResults({
-          detectedLevel: data.detected_level as LanguageLevel,
-          perTopicBreakdown: data.per_topic_breakdown.map((topicResult: any) => {
-            return {
-              category: topicResult.category as QuestionCategory,
-              topicTitle: topicResult.topic_title,
-              correctAnswersCount: topicResult.correct_answers_count,
-              questionsCount: topicResult.questions_count,
-            }
-          })
-        })
-      })
+      apiFetchSummarizedResults(userUUID!!).then((results) => setSummarizedResults(results));
     }, []);
     const loadingBlock: JSX.Element = (
       <Backdrop open={true}>

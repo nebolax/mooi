@@ -91,6 +91,8 @@ def get_passed_levels_stats(user_id: int) -> list[PassedLevelStats]:
 def process_stats(stats: list[PassedLevelStats]) -> tuple[Optional[LanguageLevel], Optional[LanguageLevel]]:
     next_level: Optional[LanguageLevel] = None
     finished_with_level: Optional[LanguageLevel] = None
+    if len(stats) == 0:
+        return None, None
     if len(stats) >= 2 and stats[-1].has_passed() != stats[-2].has_passed():
         if stats[-1].level > stats[-2].level:
             finished_with_level = stats[-2].level  # stats[-1] was failed and stats[-2] was passed
@@ -107,8 +109,6 @@ def process_stats(stats: list[PassedLevelStats]) -> tuple[Optional[LanguageLevel
         else:
             next_level = stats[-1].level - 1
 
-    assert (finished_with_level is None and next_level is not None) or \
-              (finished_with_level is not None and next_level is None), 'Exactly one of the values must be set'
     return finished_with_level, next_level
 
 

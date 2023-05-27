@@ -23,7 +23,7 @@ class StartSchema(Schema):
 
 
 class NextStepSchema(Schema):
-    answer = fields.String(load_default=None)
+    answer = fields.String(required=True)
 
 
 @api_blueprint.route('/start', methods=['POST'])
@@ -41,9 +41,21 @@ def start():
     db_session.add(user)
     db_session.commit()
     flask_session['user_id'] = user.id
-    flask_session['current_step_number'] = 0
+    flask_session['current_step_number'] = 1
     flask_session.modified = True
-    return 'OK'
+
+    generate_progress_steps_batch(
+        question_counts=get_questions_counts(user.start_level),
+        user_id=user.id,
+        current_step_number=0,
+        level=user.start_level,
+    )
+    # Get the first question
+    next_question = db_session.query(Question).join(ProgressStep).filter(
+        ProgressStep.user_id == user.id,
+        ProgressStep.step_number == 1,
+    ).first()
+    return jsonify(next_question.to_json())
 
 
 @api_blueprint.route('/next-step', methods=['POST'])
@@ -65,24 +77,12 @@ def next_step():
     current_step_number = flask_session['current_step_number']
     next_level_step_number = flask_session.get('next_level_step_number')
 
-    if answer is None:
-        if current_step_number != 0:
-            return jsonify({'error': 'Answer can be missing only for the first question'}), 400
-
-        user: User = db_session.query(User).filter(User.id == user_id).first()
-        generate_progress_steps_batch(
-            question_counts=get_questions_counts(user.start_level),
-            user_id=user_id,
-            current_step_number=0,
-            level=user.start_level,
-        )
-    else:
-        current_progress_step = db_session.query(ProgressStep).filter(
-            ProgressStep.user_id == user_id,
-            ProgressStep.step_number == current_step_number,
-        ).first()
-        current_progress_step.answer = answer  # Save the answer
-        db_session.commit()
+    current_progress_step = db_session.query(ProgressStep).filter(
+        ProgressStep.user_id == user_id,
+        ProgressStep.step_number == current_step_number,
+    ).first()
+    current_progress_step.answer = answer  # Save the answer
+    db_session.commit()
 
     if current_step_number == next_level_step_number:
         stats = get_passed_levels_stats(user_id)  # Always has at least one element

@@ -1,6 +1,7 @@
 import { Box, Button, Checkbox, FormControlLabel, FormGroup, Radio, RadioGroup } from "@mui/material";
 import { useEffect, useState } from "react";
-import { AnswerType, MediaType, QuestionProps } from "./types";
+import { AnswerType, MediaType, QuestionProps, SERVER_ADDRESS } from "./types";
+import { apiFetchText } from "./api";
 
 export default function QuestionComponent(props: QuestionProps) {
     let [singleAnswer, setSingleAnswer] = useState<number | null>(null);
@@ -31,13 +32,13 @@ export default function QuestionComponent(props: QuestionProps) {
     console.log('props', props)
     useEffect(() => {
         if (props.mediaType == MediaType.TEXT) {
-            fetch(props.filepath!!).then(response => response.text()).then(text => setTextBlockContent(text))
+            apiFetchText(props.filepath!!).then(text => setTextBlockContent(text))
         }
     })
     if (props.mediaType === MediaType.AUDIO) {
         mediablock = (
             <audio controls>
-                <source src={props.filepath!!} type="audio/mpeg" />
+                <source src={SERVER_ADDRESS + '/media/' + props.filepath!!} type="audio/mpeg" />
                 Your browser does not support the audio element.
             </audio>
         );

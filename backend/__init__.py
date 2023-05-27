@@ -44,7 +44,8 @@ def initialize_app_modules(app: Flask):
             db.create_all()  # Make sure that `sessions` table is created.
     return app
 
-
-if __name__ == '__main__':
+def create_app() -> Flask:
     app = create_basic_app()
     initialize_app_modules(app)
+    return app
+
