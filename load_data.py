@@ -6,11 +6,14 @@ import sys
 from openpyxl import load_workbook
 from sqlalchemy import MetaData
 
-from __init__ import AnswerType, LanguageLevel, Question, QuestionCategory, create_app, db_session, db
+from backend.types import AnswerType, LanguageLevel, QuestionCategory
+from backend.models import Question, db_session, db
+from backend import create_app
 
 
-ROOT_DIR_PATH = Path(__file__).resolve().parent.parent / 'test_data'
+ROOT_DIR_PATH = Path(__file__).resolve().parent / 'test_data'
 print(f'Scanning {ROOT_DIR_PATH}')
+input('Press Enter to continue...')
 
 ANSWER_TYPE_MAPPING = {
     'Выбор одного варианта': AnswerType.SELECT_ONE,
@@ -132,7 +135,7 @@ with app.app_context():
     db_session.commit()
     print('Questions added to database')
 
-media_directory = Path(__file__).resolve().parent.parent / 'backend' / 'media'
+media_directory = Path(__file__).resolve().parent / 'backend' / 'media'
 media_directory.mkdir(exist_ok=True)
 
 for filepath in collected_file_paths:
