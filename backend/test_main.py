@@ -362,17 +362,15 @@ def test_pass_the_test(client: FlaskClient):
     assert response.status_code == 200
     with client.session_transaction() as session:
         assert session['user_id'] == 1
+    assert response.json == TEST_QUESTIONS_A1_1_ONE_PER_GROUP_JSON[0]
 
-    # Get the first question
-    response = client.post('/api/next-step', json={})
-    with client.application.app_context():
-        assert response.json == TEST_QUESTIONS_A1_1_ONE_PER_GROUP_JSON[0]
     with client.session_transaction() as session:
         assert session['current_step_number'] == 1
         assert session['next_level_step_number'] == len(test_questions_a1_1_one_per_group)
 
     response = client.post('/api/next-step', json={})
-    assert response.json == {'error': 'Answer can be missing only for the first question'}
+    assert response.status_code == 400
+    assert response.json == {'answer': ['Missing data for required field.']}
     with client.session_transaction() as session:  # Session data should have not changed
         assert session['current_step_number'] == 1
 
