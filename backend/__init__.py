@@ -20,13 +20,13 @@ def catch_all(path = None):
     return send_from_directory('../frontend/build', 'index.html')
 
 
-def create_basic_app(db_name = 'u2040908_default') -> Flask:
+def create_basic_app() -> Flask:
     app = Flask(
         __name__,
         static_folder='../frontend/build/static',
         static_url_path='/static',
     )
-    app.config["SQLALCHEMY_DATABASE_URI"] = f'{os.environ["DATABASE_URI"]}/{db_name}'
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ["DATABASE_URI"]
     app.config["SESSION_TYPE"] = "sqlalchemy"
     app.config['SESSION_SQLALCHEMY'] = db
     db.init_app(app)

@@ -5,6 +5,7 @@ from flask import Response
 from flask.testing import FlaskClient
 import pytest
 import json
+import os
 
 from sqlalchemy import MetaData, inspect
 from backend import create_basic_app, initialize_app_modules
@@ -14,6 +15,7 @@ from backend.flow_logic import compute_detailed_stats, compute_summarized_stats,
 from backend.models import ProgressStep, Question, User, db_session
 from backend.types import AnswerType, LanguageLevel, PassedLevelStats, QuestionCategory, QuestionCountEntry, SummarizedStats, TopicSuccessData
 
+os.environ["DATABASE_URI"] = f'{os.environ["DATABASE_URI"].rsplit("/", maxsplit=1)[0]}/mooi_test'  # mock the db name for tests
 
 make_test_questions_a1_1_one_per_group = lambda: [
     Question(
@@ -200,7 +202,7 @@ make_test_progress_steps_a1_2 = lambda: [
 
 @pytest.fixture()
 def client():
-    app = create_basic_app(db_name='mooi_test_db')
+    app = create_basic_app()
     with app.app_context():
         db.reflect()
         db.drop_all()
