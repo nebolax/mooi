@@ -1,10 +1,5 @@
 
-export let SERVER_ADDRESS: string;
-if (process.env.NODE_ENV === 'development') {
-    SERVER_ADDRESS = 'http://localhost:5000/api';
-} else {
-    SERVER_ADDRESS = window.location.origin + '/api';
-}
+export let SERVER_ADDRESS = window.location.origin + '/api';
 
 export const emailRegexp = /^\S+@\S+\.\S+$/;
 
