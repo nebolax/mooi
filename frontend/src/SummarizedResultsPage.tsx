@@ -1,4 +1,4 @@
-import { Backdrop, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Link, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, useTheme } from "@mui/material";
+import { Backdrop, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Link, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, useMediaQuery, useTheme } from "@mui/material";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { LanguageLevel, QuestionCategory, QuestionCategoryRu, SERVER_ADDRESS, SummarizedResultsData, getLanguageLevelName } from "./types";
@@ -11,6 +11,7 @@ export default function SummarizedResultsPage() {
     const { userUUID } = useParams();
     const [summarizedResults, setSummarizedResults] = useState<SummarizedResultsData | null>(null);
     const [startOverDialogOpen, setStartOverDialogOpen] = useState<boolean>(false);
+    const isMobile = useMediaQuery(theme.breakpoints.down('desktop'));
     const startOver = () => {
       Cookies.remove('session');
       navigate('/');
@@ -64,17 +65,18 @@ export default function SummarizedResultsPage() {
             <Box sx={{ display: "flex", justifyContent: "center", flexDirection: "column" }}>
               <Button
                 variant="contained"
-                sx={{ height: "40px", marginBottom: "10px", fontSize: {desktop: "0.9em", mobile: "0.6em"} }}
+                sx={{ marginBottom: "10px", fontSize: {desktop: "0.9em", mobile: "0.75em"} }}
                 onClick={() => { navigate('/results/' + userUUID + '/detailed') }}
               >
-                Посмотреть ответы
+                {isMobile ? "Ответы" : "Посмотреть ответы"}
               </Button>
               <Button
                 variant="contained"
-                sx={{ height: "40px", fontSize: {desktop: "0.9em", mobile: "0.7em"} }}
+                sx={{ fontSize: {desktop: "0.9em", mobile: "0.75em"} }}
                 onClick={() => setStartOverDialogOpen(true)}
               >
-                Пройти еще раз
+                {isMobile ? "Заново" : "Пройти еще раз"}
+                
               </Button>
             </Box>
           </Box>
@@ -83,13 +85,12 @@ export default function SummarizedResultsPage() {
           <p>Подробное описание групп доступно на <Link href="http://mooinederlands.ru/groepslessen" target="_blank">нашем сайте</Link></p>
           <p>Следите за актуальной информацией о школе в <Link href="https://www.instagram.com/mooi.nederlands" target="_blank">нашем instagram</Link></p>
           <h4>Результаты по темам:</h4>
-          {/* Table with results */}
           <TableContainer>
             <Table>
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ paddingLeft: 0, fontWeight: "bold" }}>Тема</TableCell>
-                  <TableCell sx={{ paddingLeft: 0, fontWeight: "bold" }}>Результат</TableCell>
+                  <TableCell sx={{ paddingLeft: 0, fontWeight: "bold", minWidth: "120px" }}>Результат</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
