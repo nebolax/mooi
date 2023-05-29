@@ -80,7 +80,7 @@ export default function SummarizedResultsPage() {
           </Box>
           {yourLevelBlock}
           {recommendedLevelBlock}
-          <p>Вы можете ознакомиться с подробным описанием групп на <Link href="http://mooinederlands.ru/groepslessen" target="_blank">нашем сайте</Link></p>
+          <p>Подробное описание групп доступно на <Link href="http://mooinederlands.ru/groepslessen" target="_blank">нашем сайте</Link></p>
           <p>Следите за актуальной информацией о школе в <Link href="https://www.instagram.com/mooi.nederlands" target="_blank">нашем instagram</Link></p>
           <h4>Результаты по темам:</h4>
           {/* Table with results */}

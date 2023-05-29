@@ -62,10 +62,7 @@ export interface InProgressQuestionProps {
 export interface QuestionResultProps {
     givenAnswer: string;
     correctAnswer: string;
-    nextStepCallback: () => void;
-    previousStepCallback: () => void;
-    nextStepAllowed: boolean;
-    previousStepAllowed: boolean;
+    index: number;
 }
 
 

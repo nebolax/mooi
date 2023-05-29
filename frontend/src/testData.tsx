@@ -66,10 +66,7 @@ export const TEST_QUESTION_SELECT_MULTIPLE_RESULT: QuestionProps = {
     resultProps: {
         givenAnswer: '0,1',
         correctAnswer: '0,1,2',
-        nextStepCallback: () => console.log('next step'),
-        previousStepCallback: () => console.log('previous step'),
-        nextStepAllowed: true,
-        previousStepAllowed: false,
+        index: 1,
     },
 }
 
@@ -84,9 +81,6 @@ export const TEST_QUESTION_FILL_THE_BLANK_RESULT: QuestionProps = {
     resultProps: {
         givenAnswer: 'Python',
         correctAnswer: 'JavaScript',
-        nextStepCallback: () => console.log('next step'),
-        previousStepCallback: () => console.log('previous step'),
-        nextStepAllowed: true,
-        previousStepAllowed: false,
+        index: 3,
     },
 }

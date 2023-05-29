@@ -10,11 +10,9 @@ export default function DetailedResultsPage() {
     const navigate = useNavigate();
     const { userUUID } = useParams();
     const [detailedResults, setDetailedResults] = useState<DetailedResultsData | null>(null);
-    const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
     useEffect(() => {
         apiFetchDetailedResults(
             userUUID!!,
-            setCurrentQuestionIndex,
         ).then(detailedResults => setDetailedResults(detailedResults));
     }, []);
     const resultsBlock: JSX.Element = (
@@ -40,7 +38,9 @@ export default function DetailedResultsPage() {
                         </Button>
                     </Box>
                 </Box>
-                {detailedResults !== null && <QuestionComponent {...detailedResults?.questionsData[currentQuestionIndex]} />}
+                {detailedResults !== null && detailedResults.questionsData.map((questionData, index) => (
+                    <QuestionComponent {...questionData} key={index} />
+                ))}
             </Box>
         </Box>
     );

@@ -4,7 +4,6 @@ import { ANSWER_BORDER_RADIUS, AnswerType, BLUE_COLOR, BLUE_COLOR_TRANSPARENT, B
 import { apiFetchText } from "./api";
 
 export default function QuestionComponent(props: QuestionProps) {
-    const theme = useTheme();
     let [singleAnswer, setSingleAnswer] = useState<number | null>(null);
     let [multipleAnswer, setMultipleAnswer] = useState<number[]>([]);
     let [fillTheBlankAnswer, setFillTheBlankAnswer] = useState<string>('');
@@ -50,10 +49,12 @@ export default function QuestionComponent(props: QuestionProps) {
             </pre>
         )
     }
+    const titleIndexPrefix = props.resultProps === null ? "" : (props.resultProps.index + 1).toString() + '. '
+    const titleText = titleIndexPrefix + props.title;
     if (props.answerType === AnswerType.SELECT_ONE) {
         titleBlock = (
             <Box>
-                <p>{props.title}</p>
+                <p>{titleText}</p>
                 {mediablock}
             </Box>
         );
@@ -75,6 +76,7 @@ export default function QuestionComponent(props: QuestionProps) {
                             label={answerOption}
                             sx={{
                                 backgroundColor: props.resultProps === null ? "none" : correctSingleAnswer === index ? BLUE_COLOR_TRANSPARENT : singleAnswer === index ? BURGUNDY_COLOR_TRANSPARENT : "none",
+                                marginBottom: "10px",
                                 borderRadius: ANSWER_BORDER_RADIUS,
                             }}
                             disabled={props.resultProps !== null}
@@ -85,7 +87,7 @@ export default function QuestionComponent(props: QuestionProps) {
         );
     } else if (props.answerType === AnswerType.SELECT_MULTIPLE) {
         titleBlock = <Box>
-            <p>{props.title}</p>
+            <p>{titleText}</p>
             {mediablock}
         </Box>
         const answerOptions = JSON.parse(props.serializedAnswerOptions!!);
@@ -123,10 +125,10 @@ export default function QuestionComponent(props: QuestionProps) {
         );
     } else {  // AnswerType.FILL_THE_BLANK
         stringifiedAnswer = fillTheBlankAnswer === '' ? null : fillTheBlankAnswer;
-        const blankIndex = props.title.indexOf('<пропуск>');
+        const blankIndex = titleText.indexOf('<пропуск>');
         const titleParts = [
-            props.title.slice(0, blankIndex),
-            props.title.slice(blankIndex + '<пропуск>'.length),
+            titleText.slice(0, blankIndex),
+            titleText.slice(blankIndex + '<пропуск>'.length),
         ];
         let correctAnswerFields: JSX.Element[] = [];
         let isGivenCorrect = false;
@@ -196,37 +198,18 @@ export default function QuestionComponent(props: QuestionProps) {
             Дальше
         </Button>
     );
-    const resultsNavigation: JSX.Element | null = (props.resultProps &&
-        <Box>
-            <Button
-                disabled={!props.resultProps!!.previousStepAllowed}
-                variant="contained"
-                onClick={() => { props.resultProps!!.previousStepCallback() }}
-                sx={{ float: "left" }}
-            >
-                Назад
-            </Button>
-            <Button
-                disabled={!props.resultProps!!.nextStepAllowed}
-                variant="contained"
-                onClick={() => { props.resultProps!!.nextStepCallback() }}
-                sx={{ float: "right" }}
-            >
-                Вперед
-            </Button>
-        </Box>
-    );
     return (
         // <Box display="flex" flexDirection="column" alignItems="center">
         <Box
         // sx={{ backgroundColor: "lightgreen" }}
         // width={{ mobile: "95%", desktop: "50%" }}
         // display="inline-block"
+            sx={{marginBottom: props.resultProps === null ? "0px" : "40px"}}
         >
             {titleBlock}
             {answersBlock}
             {inProgressNavigation}
-            {resultsNavigation}
+            {props.resultProps !== null && <hr style={{marginTop: "40px"}}/>}
         </Box>
         // </Box>
     );

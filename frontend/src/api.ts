@@ -10,7 +10,7 @@ async function basicRequest(path: string, options: RequestInit | undefined = und
     }
 }
 
-export async function apiFetchDetailedResults(userUUID: string, setCurrentQuestionIndex: (x: number) => void): Promise<DetailedResultsData> {
+export async function apiFetchDetailedResults(userUUID: string): Promise<DetailedResultsData> {
     const data = await basicRequest('/results/' + userUUID + '/detailed')
     const questionsData = data.map((questionData: any, index: number) => {
         return {
@@ -23,10 +23,7 @@ export async function apiFetchDetailedResults(userUUID: string, setCurrentQuesti
             resultProps: {
                 correctAnswer: questionData.correct_answer,
                 givenAnswer: questionData.given_answer,
-                nextStepAllowed: index !== data.length - 1,
-                previousStepAllowed: index !== 0,
-                nextStepCallback: () => { setCurrentQuestionIndex(index + 1) },
-                previousStepCallback: () => { setCurrentQuestionIndex(index - 1) },
+                index: index,
             },
         }
     })
