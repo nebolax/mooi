@@ -144,7 +144,7 @@ export default function QuestionComponent(props: QuestionProps) {
                     return (
                         <input
                             type="text"
-                            size={Math.max(correctAnswer.length - 5, 1)}
+                            size={correctAnswer.length}
                             value={correctAnswer}
                             disabled={true}
                             style={{ backgroundColor: BLUE_COLOR_TRANSPARENT }}
@@ -156,20 +156,11 @@ export default function QuestionComponent(props: QuestionProps) {
         const givenAnswerField: JSX.Element = (
             <input
                 type="text"
-                size={Math.max(fillTheBlankAnswer.length - 5, 1)}
+                size={Math.max(fillTheBlankAnswer.length, 1)}
                 value={fillTheBlankAnswer}
                 onChange={(event) => { setFillTheBlankAnswer(event.target.value) }}
                 disabled={props.resultProps !== null}
                 style={{ backgroundColor: props.resultProps === null ? "none" : isGivenCorrect ? BLUE_COLOR_TRANSPARENT : BURGUNDY_COLOR_TRANSPARENT }}
-            />
-        );
-        (
-            <input
-                type="text"
-                size={Math.max(correctFillTheBlankAnswer.length - 5, 1)}
-                value={correctFillTheBlankAnswer}
-                disabled={true}
-                style={{ backgroundColor: BLUE_COLOR_TRANSPARENT }}
             />
         );
         titleBlock = <Box>

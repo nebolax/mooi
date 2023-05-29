@@ -1,4 +1,4 @@
-import { Box, Button } from "@mui/material";
+import { Backdrop, Box, Button, CircularProgress } from "@mui/material";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import QuestionComponent from "./QuestionComponent";
@@ -10,13 +10,26 @@ export default function DetailedResultsPage() {
     const navigate = useNavigate();
     const { userUUID } = useParams();
     const [detailedResults, setDetailedResults] = useState<DetailedResultsData | null>(null);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
     useEffect(() => {
         apiFetchDetailedResults(
             userUUID!!,
-        ).then(detailedResults => setDetailedResults(detailedResults));
+        ).then(detailedResults => {
+            setDetailedResults(detailedResults)
+            setIsLoading(false);
+        });
     }, []);
+    const loadingBlock: JSX.Element = (
+        <Backdrop open={true}>
+          <CircularProgress />
+        </Backdrop>
+      );
+      if (detailedResults === null) return loadingBlock;
     const resultsBlock: JSX.Element = (
         <Box display="flex" flexDirection="column" alignItems="center">
+            <Backdrop open={isLoading}>
+                <CircularProgress />
+            </Backdrop>
             <Box
                 // sx={{ backgroundColor: "lightgreen" }}
                 width={{ mobile: "95%", desktop: "50%" }}
