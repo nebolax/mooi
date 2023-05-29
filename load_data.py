@@ -62,7 +62,7 @@ def process_topic_file(level: LanguageLevel, category: QuestionCategory, topic_f
                 correct_answer = ','.join([str(index) for index in correct_answer_indices])
             elif answer_type == AnswerType.FILL_THE_BLANK:
                 answer_options = None
-                correct_answer = row_values[1]
+                correct_answer = json.dumps(row_values[1:])
 
             questions.append(Question(
                 level=level,

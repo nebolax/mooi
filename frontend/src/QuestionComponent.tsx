@@ -128,6 +128,29 @@ export default function QuestionComponent(props: QuestionProps) {
             props.title.slice(0, blankIndex),
             props.title.slice(blankIndex + '<пропуск>'.length),
         ];
+        let correctAnswerFields: JSX.Element[] = [];
+        let isGivenCorrect = false;
+        if (props.resultProps !== null) {
+            const deserializedCorrectAnswers = JSON.parse(props.resultProps.correctAnswer!!);
+            deserializedCorrectAnswers.map((correctAnswer: string) => {
+                if (correctAnswer.toLowerCase() === props.resultProps!!.givenAnswer.toLowerCase()) {
+                    isGivenCorrect = true;
+                }
+            })
+            if (!isGivenCorrect) {
+                correctAnswerFields = deserializedCorrectAnswers.map((correctAnswer: string) => {
+                    return (
+                        <input
+                            type="text"
+                            size={Math.max(correctAnswer.length - 5, 1)}
+                            value={correctAnswer}
+                            disabled={true}
+                            style={{ backgroundColor: BLUE_COLOR_TRANSPARENT }}
+                        />
+                    )
+                })
+            }
+        }
         const givenAnswerField: JSX.Element = (
             <input
                 type="text"
@@ -135,10 +158,10 @@ export default function QuestionComponent(props: QuestionProps) {
                 value={fillTheBlankAnswer}
                 onChange={(event) => { setFillTheBlankAnswer(event.target.value) }}
                 disabled={props.resultProps !== null}
-                style={{ backgroundColor: props.resultProps === null ? "none" : fillTheBlankAnswer === correctFillTheBlankAnswer ? BLUE_COLOR_TRANSPARENT : BURGUNDY_COLOR_TRANSPARENT }}
+                style={{ backgroundColor: props.resultProps === null ? "none" : isGivenCorrect ? BLUE_COLOR_TRANSPARENT : BURGUNDY_COLOR_TRANSPARENT }}
             />
         );
-        const correctAnswerField: JSX.Element = (
+        (
             <input
                 type="text"
                 size={Math.max(correctFillTheBlankAnswer.length - 5, 1)}
@@ -151,7 +174,7 @@ export default function QuestionComponent(props: QuestionProps) {
             <p>
                 {titleParts[0]}
                 {givenAnswerField}
-                {props.resultProps !== null && props.resultProps.givenAnswer !== props.resultProps.correctAnswer && correctAnswerField}
+                {correctAnswerFields}
                 {titleParts[1]}
             </p>
             {mediablock}

@@ -9,7 +9,7 @@ from backend.types import (
     TopicSuccessData,
 )
 from typing import Iterable, Optional
-from sqlalchemy import func
+from sqlalchemy import func, Integer
 import sqlalchemy
 import random
 from backend.models import ProgressStep, Question, db_session
@@ -71,11 +71,9 @@ def has_answered_pending_questions(user_id: int) -> bool:
 
 
 def get_passed_levels_stats(user_id: int) -> list[PassedLevelStats]:
-    correct_answers_sum = func.sum(sqlalchemy.case(*[(ProgressStep.answer == Question.correct_answer, 1)], else_=0))
-    total_answers_num = func.count(ProgressStep.question_id)
     stats_query = db_session.query(
         Question.level,
-        func.round(correct_answers_sum / total_answers_num * 100),
+        func.round(func.sum(ProgressStep.is_correct) / func.count(ProgressStep.question_id) * 100),
         # func.min(ProgressStep.step_number).label('level_min_step_number'),
     ).join(ProgressStep).filter(
         ProgressStep.user_id == user_id,
@@ -115,17 +113,14 @@ def process_stats(stats: list[PassedLevelStats]) -> tuple[Optional[LanguageLevel
 
 def compute_summarized_stats(user_id: int) -> Optional[SummarizedStats]:
     """Compute per-topic results as well as total number of questions and correct answers."""
-    correct_answers_sum = func.sum(sqlalchemy.case(*[(ProgressStep.answer == Question.correct_answer, 1)], else_=0))
-    total_answers_num = func.count(ProgressStep.question_id)
     per_topic_query = db_session.query(
         Question.category,
         Question.topic_title,
-        total_answers_num,
-        correct_answers_sum,
+        func.count(ProgressStep.question_id),
+        func.sum(func.cast(ProgressStep.is_correct, Integer)),
     ).join(ProgressStep).filter(
         ProgressStep.user_id == user_id,
     ).group_by(Question.category, Question.topic_title)
-
     per_topic_breakdown = []
     total_questions = 0
     total_correct_answers = 0
