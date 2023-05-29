@@ -80,8 +80,12 @@ def next_step():
     current_progress_step = db_session.query(ProgressStep).filter(
         ProgressStep.user_id == user_id,
         ProgressStep.step_number == current_step_number,
-    ).first()
+    ).one()
+    answered_question = db_session.query(Question).filter(
+        Question.id == current_progress_step.question_id,
+    ).one()
     current_progress_step.answer = answer  # Save the answer
+    current_progress_step.is_correct = answered_question.is_answer_correct(answer)
     db_session.commit()
 
     if current_step_number == next_level_step_number:

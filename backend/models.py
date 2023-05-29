@@ -1,5 +1,6 @@
 
 import datetime
+import json
 from typing import Any, Optional
 import uuid
 from flask import Flask
@@ -57,6 +58,16 @@ class Question(dbModel):
             'media_type': media_type,
         }
 
+    def is_answer_correct(self, given_answer: str) -> bool:
+        if self.answer_type in (AnswerType.SELECT_ONE, AnswerType.SELECT_MULTIPLE):
+            return self.correct_answer == given_answer
+        else:  # fill the blank
+            loaded_correct_answers = json.loads(self.correct_answer)  # should be a list
+            for correct_answer in loaded_correct_answers:
+                if correct_answer.lower() == given_answer.lower():
+                    return True
+            return False
+
 
 class User(dbModel):
     # DB meta-properties
@@ -81,3 +92,4 @@ class ProgressStep(dbModel):
     question_id: Mapped[int] = mapped_column(ForeignKey('question.id'))
     question: Mapped['Question'] = relationship()
     answer: Mapped[Optional[str]] = mapped_column(String(200))
+    is_correct: Mapped[Optional[bool]]  # Used to reduce the complexety of the queries when querying correct answers
