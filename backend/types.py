@@ -38,6 +38,9 @@ class LanguageLevel(enum.Enum):
             raise TypeError(f"unsupported operand type(s) for -: '{type(self)}' and '{type(other)}'")
         return LanguageLevel(self.value - other)
 
+    def __str__(self) -> str:
+        return self.name.replace('_', '.')
+
 
 MIN_LANGUAGE_LEVEL = LanguageLevel.A1_1
 MAX_LANGUAGE_LEVEL = LanguageLevel.A2_1
