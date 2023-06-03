@@ -1,6 +1,8 @@
 
+import os
 from flask import Blueprint, jsonify, request, send_from_directory, session as flask_session
 from marshmallow import Schema, ValidationError, fields
+from backend.admin import export_users_results_and_upload_to_google_drive
 from backend.flow_logic import (
     compute_detailed_stats,
     compute_summarized_stats,
@@ -179,6 +181,34 @@ def status():
         ProgressStep.step_number == current_step_number,
     ).first()
     return jsonify({'status': 'IN_PROGRESS', 'question': next_question.to_json()})
+
+
+@api_blueprint.route('/admin/validate-password', methods=['POST'])
+def validate_admin_password():
+    given_admin_password = request.json.get('admin_password')
+    if given_admin_password is None:
+        return 'Admin password is required', 400
+
+    correct_admin_password = os.environ.get('ADMIN_PASSWORD')
+    if correct_admin_password is None or given_admin_password != correct_admin_password:
+        return 'Invalid admin password', 403
+
+    return 'OK'
+
+
+@api_blueprint.route('/admin/export-results', methods=['POST'])
+def export_results():
+    validation_result = validate_admin_password()
+    if validation_result != 'OK':
+        return validation_result
+
+    try:
+        export_users_results_and_upload_to_google_drive()
+    except Exception as e:
+        logger.exception(e)
+        return 'Error while exporting results. Please try again or contact the developers', 409
+
+    return 'OK'
 
 
 @api_blueprint.route('/media/<path:path>', methods=['GET'])

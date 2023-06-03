@@ -1,8 +1,15 @@
 import { AnswerType, DetailedResultsData, LanguageLevel, MediaType, PostAnswerResponse, QuestionCategory, QuestionProps, SERVER_ADDRESS, StatusResponse, SummarizedResultsData } from "./types";
 
-async function basicRequest(path: string, options: RequestInit | undefined = undefined, returnType: 'JSON' | 'TEXT' = 'JSON'): Promise<any> {
+
+class BadServerResponse extends Error {}
+
+
+async function basicRequest(path: string, options: RequestInit | undefined = undefined, returnType: 'JSON' | 'TEXT' = 'JSON', failNonOk: boolean = false): Promise<any> {
     const fullUrl = SERVER_ADDRESS + path;
     const response = await fetch(fullUrl, options);
+    if (failNonOk && !response.ok) {
+        throw new BadServerResponse();
+    }
     if (returnType === 'TEXT') {
         return await response.text();
     } else {
@@ -123,4 +130,38 @@ export async function apiFetchSummarizedResults(userUUID: string): Promise<Summa
             }
         })
     }
+}
+
+export async function apiValidateAdminPassword(password: string): Promise<boolean> {
+    try {
+        await basicRequest('/admin/validate-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                admin_password: password,
+            })
+        }, 'TEXT', true);
+    } catch (e) {
+        return false;
+    }
+    return true;
+}
+
+export async function apiExportResults(password: string): Promise<boolean> {
+    try {
+        await basicRequest('/admin/export-results', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                admin_password: password,
+            })
+        }, 'TEXT', true);
+    } catch (e) {
+        return false;
+    }
+    return true;
 }

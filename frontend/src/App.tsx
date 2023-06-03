@@ -4,6 +4,7 @@ import MainPage from './MainPage';
 import SummarizedResultsPage from './SummarizedResultsPage';
 import DetailedResultsPage from './DetailedResultsPage';
 import { BLUE_COLOR, BURGUNDY_COLOR } from './types';
+import AdminPage from './AdminPage';
 
 
 declare module '@mui/material/styles' {
@@ -52,6 +53,7 @@ function App() {
           <Route path="/" element={<MainPage />} />
           <Route path="/results/:userUUID" element={<SummarizedResultsPage />} />
           <Route path="/results/:userUUID/detailed" element={<DetailedResultsPage />} />
+          <Route path="/admin" element={<AdminPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>

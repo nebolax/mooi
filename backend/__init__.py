@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import os
 from flask_session import Session
 from sqlalchemy import inspect
+from backend.admin import export_users_results_and_upload_to_google_drive
 from backend.rest_api import api_blueprint
 from backend.models import db
 

@@ -2,10 +2,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterator
 from backend.flow_logic import get_passed_levels_stats, process_stats
-from backend.types import MAX_LANGUAGE_LEVEL, MIN_LANGUAGE_LEVEL, LanguageLevel
+from backend.types import MAX_LANGUAGE_LEVEL, LanguageLevel
 from backend.models import User, db_session
 import openpyxl
 from openpyxl.utils import get_column_letter
+from pydrive2.auth import GoogleAuth
+from pydrive2.drive import GoogleDrive
 
 
 def generate_users_results_export_data() -> Iterator[tuple]:
@@ -30,7 +32,7 @@ def generate_users_results_export_data() -> Iterator[tuple]:
         )
 
 
-def export_users_results_to_file():
+def export_users_results_to_file(filepath: Path):
     workbook = openpyxl.Workbook()
     worksheet = workbook.active
     worksheet.title = 'Результаты прохождения теста'
@@ -60,9 +62,32 @@ def export_users_results_to_file():
         if new_column_length > 0:
             worksheet.column_dimensions[new_column_letter].width = new_column_length*1.23
 
+    workbook.save(filepath)
 
+
+def upload_file_to_google_drive(filepath: Path):
+    settings = {
+        'client_config_backend': 'service',
+        'service_config': {
+            'client_json_file_path': 'google-credentials.json',
+        }
+    }
+    gauth = GoogleAuth(settings=settings)
+    gauth.ServiceAuth()
+    drive = GoogleDrive(gauth)
+    google_file = drive.CreateFile({
+        'parents': [{'kind': 'drive#fileLink', 'id': '1mHxFEdiXN4_4rZ9MXzjq1drdP6IRMtmM'}],
+        'title': filepath.name,
+    })
+    google_file.SetContentFile(str(filepath))
+    google_file.Upload()
+
+
+def export_users_results_and_upload_to_google_drive():
     export_dir = Path(__file__).resolve().parent.parent / 'export_data'
     export_dir.mkdir(exist_ok=True)
     current_datetime_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     filename = f'Экспорт результатов {current_datetime_str}.xlsx'
-    workbook.save(export_dir / filename)
+    filepath = export_dir / filename
+    export_users_results_to_file(filepath)
+    upload_file_to_google_drive(filepath)

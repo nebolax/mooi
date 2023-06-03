@@ -194,3 +194,4 @@ yarn-debug.log*
 yarn-error.log*
 _tools
 export_data
+google-credentials.json
