@@ -1,8 +1,9 @@
 
 import os
+import uuid
 from flask import Blueprint, jsonify, request, send_from_directory, session as flask_session
 from marshmallow import Schema, ValidationError, fields
-from backend.admin import export_users_results_and_upload_to_google_drive
+from backend.admin import calculate_all_analytics, export_users_results_and_upload_to_google_drive
 from backend.flow_logic import (
     compute_detailed_stats,
     compute_summarized_stats,
@@ -13,10 +14,26 @@ from backend.flow_logic import (
     process_stats,
 )
 from backend.logs import logger
-from backend.models import ProgressStep, Question, User, db_session
+from backend.models import ProgressStep, Question, User, UserAnalytics, db_session
 from backend.types import LanguageLevel
 
+
+main_blueprint = Blueprint('main', __name__, url_prefix='/')
 api_blueprint = Blueprint('api', __name__, url_prefix='/api')
+
+main_blueprint.register_blueprint(api_blueprint)
+
+@main_blueprint.route('/')
+@main_blueprint.route('/<path:path>')
+def catch_all(path = None):
+    if 'user_uuid' not in flask_session:
+        analytics = UserAnalytics()
+        db_session.add(analytics)
+        db_session.commit()
+        flask_session['user_uuid'] = analytics.uuid
+
+    return send_from_directory('../frontend/build', 'index.html')
+
 
 class StartSchema(Schema):
     email = fields.String(required=True)
@@ -35,10 +52,24 @@ def start():
         data = StartSchema().load(request.json)
     except ValidationError as e:
         return jsonify(e.messages), 400
+
+    start_level = data['start_level']
+    choosed_dont_know_level = False
+    if start_level == LanguageLevel.A0:
+        start_level = LanguageLevel.A1_1
+        choosed_dont_know_level = True
+
+    user_uuid = flask_session.get('user_uuid')
+    if user_uuid is None:
+        logger.error(f'User UUID for {data} is not set')  # Should always be set
+        user_uuid = str(uuid.uuid4())
+
     user = User(
+        uuid=user_uuid,
         email=data['email'],
         full_name=data['full_name'],
-        start_level=data['start_level'],
+        start_level=start_level,
+        choosed_dont_know_level=choosed_dont_know_level,
     )
     db_session.add(user)
     db_session.commit()
@@ -209,6 +240,22 @@ def export_results():
         return 'Error while exporting results. Please try again or contact the developers', 409
 
     return 'OK'
+
+
+@api_blueprint.route('/admin/analytics', methods=['POST'])
+def get_analytics():
+    validation_result = validate_admin_password()
+    if validation_result != 'OK':
+        return validation_result
+
+    try:
+        analytics = calculate_all_analytics()
+    except Exception as e:
+        logger.exception(e)
+        return 'Error while calculating analytics. Please try again or contact the developers', 409
+
+    serialized_analytics = analytics.to_json()
+    return serialized_analytics
 
 
 @api_blueprint.route('/media/<path:path>', methods=['GET'])

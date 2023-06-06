@@ -2,23 +2,15 @@ from flask import Blueprint, Flask, send_from_directory
 from dotenv import load_dotenv
 import os
 from flask_session import Session
+from flask import session as flask_session
 from sqlalchemy import inspect
 from backend.admin import export_users_results_and_upload_to_google_drive
-from backend.rest_api import api_blueprint
+from backend.rest_api import main_blueprint
 from backend.models import db
 
 from flask_cors import CORS
 
 load_dotenv()
-
-
-main_blueprint = Blueprint('main', __name__, url_prefix='/')
-main_blueprint.register_blueprint(api_blueprint)
-
-@main_blueprint.route('/')
-@main_blueprint.route('/<path:path>')
-def catch_all(path = None):
-    return send_from_directory('../frontend/build', 'index.html')
 
 
 def create_basic_app() -> Flask:
@@ -42,8 +34,9 @@ def initialize_app_modules(app: Flask):
     app.config['SESSION_COOKIE_HTTPONLY'] = False
     with app.app_context():
         Session(app)
-        if inspect(db.engine).has_table('sessions') is False:
-            db.create_all()  # Make sure that `sessions` table is created.
+        # if inspect(db.engine).has_table('sessions') is False:
+        #     db.create_all()  # Make sure that `sessions` table is created.
+        db.create_all()  # Make sure that all tables are created    
     return app
 
 def create_app() -> Flask:

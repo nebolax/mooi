@@ -22,7 +22,7 @@ export enum MediaType {
 }
 
 export enum LanguageLevel {
-    A_0 = 1,
+    A0 = 1,
     A1_1 = 2,
     A1_2 = 3,
     A2_1 = 4,
@@ -109,4 +109,22 @@ export interface PostAnswerResponse {
     finished: boolean;
     userUUID: string | null;
     question: QuestionProps | null;
+}
+
+export interface StagesAnalytics {
+    openedThePagePercentage: number;
+    startedTheTestPercentage: number;
+    finishedTheTestPercentage: number;
+}
+
+export interface StartLevelCountEntry {
+    level: string;
+    count: number;
+}
+
+
+export interface AllAnalytics {
+    stagesAnalytics: StagesAnalytics;
+    startLevelSelectionDistribution: StartLevelCountEntry[];
+    topicsSuccess: SummarizedTopicResult[];
 }

@@ -12,7 +12,7 @@ class QuestionCategory(enum.Enum):
 
 
 class LanguageLevel(enum.Enum):
-    A_0 = auto()
+    A0 = auto()
     A1_1 = auto()
     A1_2 = auto()
     A2_1 = auto()
@@ -125,4 +125,30 @@ class PassedStep(NamedTuple):
             'media_type': media_type,
             'filepath': self.filepath,
             'given_answer': self.given_answer,
+        }
+
+
+class StagesAnalytics(NamedTuple):
+    opened_the_page_percentage: int
+    started_the_test_percentage: int
+    finished_the_test_percentage: int
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            'opened_the_page_percentage': self.opened_the_page_percentage,
+            'started_the_test_percentage': self.started_the_test_percentage,
+            'finished_the_test_percentage': self.finished_the_test_percentage,
+        }
+
+
+class AllAnalytics(NamedTuple):
+    stages_analytics: StagesAnalytics
+    start_level_selection_distribution: list[tuple[str, int]]
+    topics_success: list[TopicSuccessData]
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            'stages_analytics': self.stages_analytics.to_json(),
+            'start_level_selection_distribution': [list(x) for x in self.start_level_selection_distribution],
+            'topics_success': [single_topic_data.to_json() for single_topic_data in self.topics_success],
         }

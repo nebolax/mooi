@@ -33,7 +33,7 @@ export default function SummarizedResultsPage() {
       recommendedLevelBlock = <p>Рекомендуем вам записаться в группу <strong>{getLanguageLevelName(summarizedResults.detectedLevel + 1)}</strong></p>
     }
     let yourLevelBlock: JSX.Element;
-    if (summarizedResults.detectedLevel === LanguageLevel.A_0) {
+    if (summarizedResults.detectedLevel === LanguageLevel.A0) {
       yourLevelBlock = <p>Вы пока что совсем не знаете голландский</p>
     } else {
       yourLevelBlock = <p>Ваш ориентировочный уровень: <strong>{getLanguageLevelName(summarizedResults?.detectedLevel)}</strong></p>

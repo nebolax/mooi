@@ -31,9 +31,6 @@ export default function MainPage() {
 
   const doStart = (name: string, email: string, startLevelName: string) => {
     setIsLoading(true);
-    if (LanguageLevel[startLevelName as keyof typeof LanguageLevel] === LanguageLevel.A_0) {
-      startLevelName = 'A1_1';
-    }
     console.log(name, email, startLevelName);
     apiStartTheTest(name, email, startLevelName, nextStepCallback).then(question => {
       setCurrentQuestion(question)

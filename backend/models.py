@@ -69,10 +69,15 @@ class Question(dbModel):
             return False
 
 
+class UserAnalytics(dbModel):
+    uuid: Mapped[str] = mapped_column(String(200), default=lambda: str(uuid.uuid4()), primary_key=True)
+    timestamp: Mapped[datetime.datetime] = mapped_column(default=datetime.datetime.utcnow)
+
+
 class User(dbModel):
     # DB meta-properties
     id: Mapped[IntegerPrimaryKey]
-    uuid: Mapped[str] = mapped_column(String(200), default=lambda: str(uuid.uuid4()))
+    uuid: Mapped[str] = mapped_column(String(200))
     timestamp: Mapped[datetime.datetime] = mapped_column(default=datetime.datetime.utcnow)
 
     # User information
@@ -81,6 +86,7 @@ class User(dbModel):
 
     # Progress in the test
     start_level: Mapped['LanguageLevel']
+    choosed_dont_know_level: Mapped[bool]
 
 
 class ProgressStep(dbModel):
@@ -92,4 +98,4 @@ class ProgressStep(dbModel):
     question_id: Mapped[int] = mapped_column(ForeignKey('question.id'))
     question: Mapped['Question'] = relationship()
     answer: Mapped[Optional[str]] = mapped_column(String(200))
-    is_correct: Mapped[Optional[bool]]  # Used to reduce the complexety of the queries when querying correct answers
+    is_correct: Mapped[Optional[bool]]  # Used to reduce the complexity of the queries when querying correct answers

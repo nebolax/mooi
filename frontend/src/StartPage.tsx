@@ -6,7 +6,7 @@ import { LanguageLevel, StartPageProps, emailRegexp as EMAIL_REGEXP } from "./ty
 export default function StartPage(props: StartPageProps) {
     const [name, setName] = useState<string>('');
     const [email, setEmail] = useState<string>('');
-    const [startLevelName, setStartLevelSerialized] = useState<string>('');
+    const [startLevelName, setStartLevelName] = useState<string>('');
     return (
         <Box
         // display="flex" flexDirection="column" alignItems="center"
@@ -38,7 +38,7 @@ export default function StartPage(props: StartPageProps) {
             <RadioGroup
                 aria-labelledby='level-selection-label'
                 value={startLevelName}
-                onChange={(event) => setStartLevelSerialized(event.target.value)}
+                onChange={(event) => setStartLevelName(event.target.value)}
             >
                 {
                     Object.entries(LanguageLevel).map(
@@ -49,7 +49,7 @@ export default function StartPage(props: StartPageProps) {
                                 value={key}
                                 disabled={(value as LanguageLevel) > LanguageLevel.A2_1}
                                 control={<Radio />}
-                                label={value === LanguageLevel.A_0 ? 'Не знаю' : key.replaceAll('_', '.')}
+                                label={value === LanguageLevel.A0 ? 'Не знаю' : key.replaceAll('_', '.')}
                             />
                         }
                     )

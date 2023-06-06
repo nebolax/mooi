@@ -1,4 +1,4 @@
-import { AnswerType, DetailedResultsData, LanguageLevel, MediaType, PostAnswerResponse, QuestionCategory, QuestionProps, SERVER_ADDRESS, StatusResponse, SummarizedResultsData } from "./types";
+import { AllAnalytics, AnswerType, DetailedResultsData, LanguageLevel, MediaType, PostAnswerResponse, QuestionCategory, QuestionProps, SERVER_ADDRESS, StatusResponse, SummarizedResultsData } from "./types";
 
 
 class BadServerResponse extends Error {}
@@ -164,4 +164,40 @@ export async function apiExportResults(password: string): Promise<boolean> {
         return false;
     }
     return true;
+}
+
+export async function apiFetchAnalytics(password: string): Promise<AllAnalytics> {
+    const data = await basicRequest('/admin/analytics', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            admin_password: password,
+        })
+    }, 'JSON', true);
+
+    const allAnalytics: AllAnalytics = {
+        stagesAnalytics: {
+            openedThePagePercentage: data.stages_analytics.opened_the_page_percentage,
+            startedTheTestPercentage: data.stages_analytics.started_the_test_percentage,
+            finishedTheTestPercentage: data.stages_analytics.finished_the_test_percentage,
+        },
+        startLevelSelectionDistribution: data.start_level_selection_distribution.map(([level, count]: any) => {
+            return {
+                level: level,
+                count: count,
+            }
+        }),
+        topicsSuccess: data.topics_success.map((topicResult: any) => {
+            return {
+                category: topicResult.category as QuestionCategory,
+                topicTitle: topicResult.topic_title,
+                correctAnswersCount: topicResult.correct_answers_count,
+                questionsCount: topicResult.questions_count,
+            }
+        })
+    }
+    console.log('aaaa', allAnalytics)
+    return allAnalytics;
 }

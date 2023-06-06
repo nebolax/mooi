@@ -70,7 +70,15 @@ def has_answered_pending_questions(user_id: int) -> bool:
     ).count() == 0
 
 
-def get_passed_levels_stats(user_id: int) -> list[PassedLevelStats]:
+def get_passed_levels_stats(user_id: int) -> Optional[list[PassedLevelStats]]:
+    has_unanswered_questions = db_session.query(ProgressStep).filter(
+        ProgressStep.user_id == user_id,
+        ProgressStep.answer.is_(None),
+    ).count() > 0
+
+    if has_unanswered_questions:
+        return None
+
     stats_query = db_session.query(
         Question.level,
         func.round(func.sum(ProgressStep.is_correct) / func.count(ProgressStep.question_id) * 100),
@@ -86,10 +94,10 @@ def get_passed_levels_stats(user_id: int) -> list[PassedLevelStats]:
     return result
 
 
-def process_stats(stats: list[PassedLevelStats]) -> tuple[Optional[LanguageLevel], Optional[LanguageLevel]]:
+def process_stats(stats: Optional[list[PassedLevelStats]]) -> tuple[Optional[LanguageLevel], Optional[LanguageLevel]]:
     next_level: Optional[LanguageLevel] = None
     finished_with_level: Optional[LanguageLevel] = None
-    if len(stats) == 0:
+    if stats is None or len(stats) == 0:
         return None, None
     if len(stats) >= 2 and stats[-1].has_passed() != stats[-2].has_passed():
         if stats[-1].level > stats[-2].level:
@@ -103,7 +111,7 @@ def process_stats(stats: list[PassedLevelStats]) -> tuple[Optional[LanguageLevel
             next_level = LanguageLevel(stats[-1].level + 1)
     else:
         if stats[-1].level == MIN_LANGUAGE_LEVEL:
-            finished_with_level = LanguageLevel.A_0
+            finished_with_level = LanguageLevel.A0
         else:
             next_level = stats[-1].level - 1
 
